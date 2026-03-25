@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useFileContext } from "../context/FileContext";
+import type { EditorStateSnapshot } from "../editor/types";
 
 const BASE_BTN =
   "inline-flex items-center justify-center w-7 h-[22px] rounded-[var(--window-radius)] border-0 text-base-content cursor-pointer select-none transition-[background,opacity] duration-100";
@@ -11,28 +11,26 @@ const IDLE_BTN = `${BASE_BTN} opacity-60 hover:opacity-100 hover:bg-base-300`;
 const ACTIVE_BTN = `${BASE_BTN} opacity-100 bg-base-300`;
 const WINDOW_BTN = `${BASE_BTN} opacity-70 hover:opacity-100 hover:bg-base-300`;
 
-type EditorState = {
-  canUndo: boolean;
-  canRedo: boolean;
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-  strikethrough: boolean;
-  code: boolean;
-  blockType: string;
-  listType: string;
-  focused: boolean;
-};
-
 type MenuItem =
-  | { type: "item"; label: string; shortcut?: string; action?: string; activeKey?: keyof EditorState }
+  | {
+      type: "item";
+      label: string;
+      shortcut?: string;
+      action?: string;
+      activeKey?: keyof EditorStateSnapshot;
+    }
   | { type: "submenu"; label: string; items: MenuItem[] }
   | { type: "divider" };
 
 type MenuSection = { label: string; items: MenuItem[] };
 
 const BLOCK_ITEMS: MenuItem[] = [
-  { type: "item", label: "Paragraph", action: "blockType:paragraph", activeKey: undefined },
+  {
+    type: "item",
+    label: "Paragraph",
+    action: "blockType:paragraph",
+    activeKey: undefined,
+  },
   { type: "item", label: "Heading 1", action: "blockType:h1" },
   { type: "item", label: "Heading 2", action: "blockType:h2" },
   { type: "item", label: "Heading 3", action: "blockType:h3" },
@@ -55,7 +53,12 @@ const MENU_SECTIONS: MenuSection[] = [
       { type: "item", label: "New", shortcut: "Ctrl+N", action: "new" },
       { type: "item", label: "Open…", shortcut: "Ctrl+O", action: "open" },
       { type: "item", label: "Save", shortcut: "Ctrl+S", action: "save" },
-      { type: "item", label: "Save As…", shortcut: "Ctrl+Shift+S", action: "saveAs" },
+      {
+        type: "item",
+        label: "Save As…",
+        shortcut: "Ctrl+Shift+S",
+        action: "saveAs",
+      },
       { type: "divider" },
       { type: "item", label: "Export as PDF" },
       { type: "item", label: "Export as HTML" },
@@ -78,10 +81,33 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     label: "Format",
     items: [
-      { type: "item", label: "Bold", shortcut: "Ctrl+B", action: "bold", activeKey: "bold" },
-      { type: "item", label: "Italic", shortcut: "Ctrl+I", action: "italic", activeKey: "italic" },
-      { type: "item", label: "Underline", shortcut: "Ctrl+U", action: "underline", activeKey: "underline" },
-      { type: "item", label: "Strikethrough", action: "strikethrough", activeKey: "strikethrough" },
+      {
+        type: "item",
+        label: "Bold",
+        shortcut: "Ctrl+B",
+        action: "bold",
+        activeKey: "bold",
+      },
+      {
+        type: "item",
+        label: "Italic",
+        shortcut: "Ctrl+I",
+        action: "italic",
+        activeKey: "italic",
+      },
+      {
+        type: "item",
+        label: "Underline",
+        shortcut: "Ctrl+U",
+        action: "underline",
+        activeKey: "underline",
+      },
+      {
+        type: "item",
+        label: "Strikethrough",
+        action: "strikethrough",
+        activeKey: "strikethrough",
+      },
       { type: "item", label: "Inline Code", action: "code", activeKey: "code" },
       { type: "divider" },
       { type: "item", label: "Subscript", action: "subscript" },
@@ -119,17 +145,39 @@ const MENU_SECTIONS: MenuSection[] = [
 ];
 
 const FILE_ACTIONS = new Set(["new", "open", "save", "saveAs"]);
-const FORMAT_ACTIONS = new Set(["bold", "italic", "underline", "strikethrough", "code", "subscript", "superscript"]);
-const INSERT_ACTIONS = new Set(["insertImage", "insertTable", "insertCodeBlock", "createLink", "insertThematicBreak", "insertFrontmatter"]);
-const LIST_ACTIONS = new Set(["bulletList", "orderedList", "checklist", "removeList"]);
+const FORMAT_ACTIONS = new Set([
+  "bold",
+  "italic",
+  "underline",
+  "strikethrough",
+  "code",
+  "subscript",
+  "superscript",
+]);
+const INSERT_ACTIONS = new Set([
+  "insertImage",
+  "insertTable",
+  "insertCodeBlock",
+  "createLink",
+  "insertThematicBreak",
+  "insertFrontmatter",
+]);
+const LIST_ACTIONS = new Set([
+  "bulletList",
+  "orderedList",
+  "checklist",
+  "removeList",
+]);
 
 export function FloatingBar() {
   const {
     fileState,
+    editorState,
     handleNew,
     handleOpen,
     handleSave,
     handleSaveAs,
+    handleEditorAction,
     sourceMode,
     toggleSourceMode,
     sidebarOpen,
@@ -140,38 +188,15 @@ export function FloatingBar() {
   const [mainPopupStyle, setMainPopupStyle] = useState<React.CSSProperties>({});
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [submenuStyle, setSubmenuStyle] = useState<React.CSSProperties>({});
-  const [activeSubmenuItem, setActiveSubmenuItem] = useState<string | null>(null);
-  const [subsubmenuStyle, setSubsubmenuStyle] = useState<React.CSSProperties>({});
-  const [editorState, setEditorState] = useState<EditorState>({
-    canUndo: false,
-    canRedo: false,
-    bold: false,
-    italic: false,
-    underline: false,
-    strikethrough: false,
-    code: false,
-    blockType: "paragraph",
-    listType: "",
-    focused: false,
-  });
+  const [activeSubmenuItem, setActiveSubmenuItem] = useState<string | null>(
+    null,
+  );
+  const [subsubmenuStyle, setSubsubmenuStyle] = useState<React.CSSProperties>(
+    {},
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeSubmenuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | undefined;
-    listen<EditorState>("editor-state", (e) => {
-      if (!cancelled) setEditorState(e.payload);
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    });
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, []);
 
   useEffect(() => {
     const currentWindow = getCurrentWindow();
@@ -185,12 +210,14 @@ export function FloatingBar() {
 
     syncMaximizedState();
 
-    currentWindow.onResized(() => {
-      void syncMaximizedState();
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    });
+    currentWindow
+      .onResized(() => {
+        void syncMaximizedState();
+      })
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      });
 
     return () => {
       cancelled = true;
@@ -199,7 +226,9 @@ export function FloatingBar() {
   }, []);
 
   const menuItemClickRef = useRef(handleMenuItemClick);
-  useEffect(() => { menuItemClickRef.current = handleMenuItemClick; });
+  useEffect(() => {
+    menuItemClickRef.current = handleMenuItemClick;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -241,7 +270,10 @@ export function FloatingBar() {
     }
   }
 
-  function handleSectionEnter(label: string, e: React.MouseEvent<HTMLButtonElement>) {
+  function handleSectionEnter(
+    label: string,
+    e: React.MouseEvent<HTMLButtonElement>,
+  ) {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
       closeTimer.current = null;
@@ -266,7 +298,10 @@ export function FloatingBar() {
     }
   }
 
-  function handleSubmenuItemEnter(label: string, e: React.MouseEvent<HTMLButtonElement>) {
+  function handleSubmenuItemEnter(
+    label: string,
+    e: React.MouseEvent<HTMLButtonElement>,
+  ) {
     if (closeSubmenuTimer.current) {
       clearTimeout(closeSubmenuTimer.current);
       closeSubmenuTimer.current = null;
@@ -284,7 +319,10 @@ export function FloatingBar() {
   }
 
   function handleNonSubmenuItemEnter() {
-    closeSubmenuTimer.current = setTimeout(() => setActiveSubmenuItem(null), 150);
+    closeSubmenuTimer.current = setTimeout(
+      () => setActiveSubmenuItem(null),
+      150,
+    );
   }
 
   async function handleMinimize() {
@@ -313,6 +351,17 @@ export function FloatingBar() {
     if (item.type === "submenu") return true;
     const action = item.action;
     if (!action) return false;
+    if (
+      sourceMode &&
+      (action === "undo" ||
+        action === "redo" ||
+        FORMAT_ACTIONS.has(action) ||
+        LIST_ACTIONS.has(action) ||
+        INSERT_ACTIONS.has(action) ||
+        action.startsWith("blockType:"))
+    ) {
+      return false;
+    }
     if (action === "undo") return editorState.canUndo;
     if (action === "redo") return editorState.canRedo;
     if (FILE_ACTIONS.has(action)) return true;
@@ -347,29 +396,56 @@ export function FloatingBar() {
     closeMenu();
     if (!action) return;
     switch (action) {
-      case "new": handleNew(); return;
-      case "open": handleOpen(); return;
-      case "save": handleSave(); return;
-      case "saveAs": handleSaveAs(); return;
-      case "toggle-sidebar": toggleSidebar(); return;
-      case "source-mode": toggleSourceMode(); return;
+      case "new":
+        handleNew();
+        return;
+      case "open":
+        handleOpen();
+        return;
+      case "save":
+        handleSave();
+        return;
+      case "saveAs":
+        handleSaveAs();
+        return;
+      case "toggle-sidebar":
+        toggleSidebar();
+        return;
+      case "source-mode":
+        toggleSourceMode();
+        return;
     }
     if (action.startsWith("blockType:")) {
       const blockType = action.split(":")[1];
-      invoke("editor_action", { action: "blockType", blockType });
+      void handleEditorAction({
+        action: "blockType",
+        blockType: blockType as
+          | "paragraph"
+          | "quote"
+          | "h1"
+          | "h2"
+          | "h3"
+          | "h4"
+          | "h5"
+          | "h6",
+      });
     } else if (action === "insertTable") {
-      invoke("editor_action", { action: "insertTable", rows: 3, columns: 3 });
+      void handleEditorAction({ action: "insertTable", rows: 3, columns: 3 });
     } else {
-      invoke("editor_action", { action });
+      void handleEditorAction({
+        action: action as Parameters<typeof handleEditorAction>[0]["action"],
+      });
     }
   }
 
-  const activeSectionData = MENU_SECTIONS.find((s) => s.label === activeSection);
+  const activeSectionData = MENU_SECTIONS.find(
+    (s) => s.label === activeSection,
+  );
   const activeSubmenuData = activeSectionData?.items.find(
-    (it) => it.type === "submenu" && it.label === activeSubmenuItem
+    (it) => it.type === "submenu" && it.label === activeSubmenuItem,
   ) as Extract<MenuItem, { type: "submenu" }> | undefined;
   const titleName = fileState.currentPath
-    ? fileState.currentPath.split(/[\\/]/).pop() ?? "Untitled"
+    ? (fileState.currentPath.split(/[\\/]/).pop() ?? "Untitled")
     : "Untitled";
   const titleLabel = `${fileState.isDirty ? "• " : ""}${titleName}`;
 
@@ -378,7 +454,11 @@ export function FloatingBar() {
       return (
         <div
           key={i}
-          style={{ height: 1, background: "var(--color-base-300)", margin: "3px 0" }}
+          style={{
+            height: 1,
+            background: "var(--color-base-300)",
+            margin: "3px 0",
+          }}
         />
       );
     }
@@ -411,7 +491,9 @@ export function FloatingBar() {
         onClick={() => handleMenuItemClick(item.action)}
       >
         <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 12, fontSize: 11, flexShrink: 0 }}>{active ? "✓" : ""}</span>
+          <span style={{ width: 12, fontSize: 11, flexShrink: 0 }}>
+            {active ? "✓" : ""}
+          </span>
           {item.label}
         </span>
         {item.shortcut && (
@@ -447,13 +529,31 @@ export function FloatingBar() {
           onClick={toggleSidebar}
         >
           {sidebarOpen ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <line x1="9" y1="3" x2="9" y2="21" />
               <path d="M17 16l-4-4 4-4" />
             </svg>
           ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <line x1="9" y1="3" x2="9" y2="21" />
               <path d="M13 8l4 4-4 4" />
@@ -480,14 +580,24 @@ export function FloatingBar() {
         {menuOpen && (
           <div
             className="block-handle-popup"
-            style={{ ...mainPopupStyle, position: "fixed", overflow: "visible", minWidth: 120, zIndex: 1020 }}
+            style={{
+              ...mainPopupStyle,
+              position: "fixed",
+              overflow: "visible",
+              minWidth: 120,
+              zIndex: 1020,
+            }}
             onMouseLeave={scheduleClose}
           >
             {MENU_SECTIONS.map((section) => (
               <button
                 key={section.label}
                 className="block-popup-item block-popup-item-submenu"
-                style={activeSection === section.label ? { background: "var(--color-base-200)" } : undefined}
+                style={
+                  activeSection === section.label
+                    ? { background: "var(--color-base-200)" }
+                    : undefined
+                }
                 onMouseEnter={(e) => handleSectionEnter(section.label, e)}
               >
                 <span>{section.label}</span>
@@ -501,7 +611,12 @@ export function FloatingBar() {
         {menuOpen && activeSectionData && (
           <div
             className="block-handle-popup"
-            style={{ ...submenuStyle, position: "fixed", minWidth: 200, zIndex: 1020 }}
+            style={{
+              ...submenuStyle,
+              position: "fixed",
+              minWidth: 200,
+              zIndex: 1020,
+            }}
             onMouseEnter={cancelClose}
             onMouseLeave={scheduleClose}
           >
@@ -513,13 +628,26 @@ export function FloatingBar() {
         {menuOpen && activeSubmenuData && (
           <div
             className="block-handle-popup"
-            style={{ ...subsubmenuStyle, position: "fixed", minWidth: 160, zIndex: 1020 }}
-            onMouseEnter={() => { cancelClose(); cancelCloseSubmenu(); }}
+            style={{
+              ...subsubmenuStyle,
+              position: "fixed",
+              minWidth: 160,
+              zIndex: 1020,
+            }}
+            onMouseEnter={() => {
+              cancelClose();
+              cancelCloseSubmenu();
+            }}
             onMouseLeave={() => {
-              closeSubmenuTimer.current = setTimeout(() => setActiveSubmenuItem(null), 150);
+              closeSubmenuTimer.current = setTimeout(
+                () => setActiveSubmenuItem(null),
+                150,
+              );
             }}
           >
-            {activeSubmenuData.items.map((item, i) => renderItem(item, i, true))}
+            {activeSubmenuData.items.map((item, i) =>
+              renderItem(item, i, true),
+            )}
           </div>
         )}
       </div>
@@ -534,9 +662,29 @@ export function FloatingBar() {
             title="Source mode"
           >
             <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-              <path d="M5 1L1 5l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M11 1l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <line x1="9.5" y1="0.5" x2="6.5" y2="9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <path
+                d="M5 1L1 5l4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M11 1l4 4-4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <line
+                x1="9.5"
+                y1="0.5"
+                x2="6.5"
+                y2="9.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -547,8 +695,19 @@ export function FloatingBar() {
             onClick={handleMinimize}
             title="Minimize"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M2 6h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M2 6h8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
           <button
@@ -558,14 +717,53 @@ export function FloatingBar() {
             title={isMaximized ? "Restore down" : "Maximize"}
           >
             {isMaximized ? (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M4.25 2.25h4a1.5 1.5 0 0 1 1.5 1.5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <rect x="2.25" y="4.25" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M5 2.25h1.75a1 1 0 0 1 1 1V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4.25 2.25h4a1.5 1.5 0 0 1 1.5 1.5v4"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <rect
+                  x="2.25"
+                  y="4.25"
+                  width="5.5"
+                  height="5.5"
+                  rx="1"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M5 2.25h1.75a1 1 0 0 1 1 1V5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
               </svg>
             ) : (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <rect x="2.25" y="2.25" width="7.5" height="7.5" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <rect
+                  x="2.25"
+                  y="2.25"
+                  width="7.5"
+                  height="7.5"
+                  rx="1.25"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
               </svg>
             )}
           </button>
@@ -575,8 +773,19 @@ export function FloatingBar() {
             onClick={handleClose}
             title="Close"
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M3 3l6 6M9 3L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M3 3l6 6M9 3L3 9"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>

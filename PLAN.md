@@ -1,0 +1,196 @@
+# Milkdown Migration Plan
+
+## Goal
+
+Migrate the editor from `@mdxeditor/editor` to Milkdown without regressing file handling, source mode, menu actions, or the current custom editor UX.
+
+## Current State
+
+- The editor is mounted directly in `src/App.tsx` with `MDXEditor` and a stack of MDXEditor plugins.
+- File state and save logic in `src/context/FileContext.tsx` depend on `MDXEditorMethods`.
+- Menu and Tauri actions are bridged through `src/components/FloatingBar.tsx`, `src/plugins/tauriEditorPlugin.tsx`, and `src-tauri/src/lib.rs`.
+- Two custom overlays are tightly coupled to Lexical and MDXEditor internals:
+  - `src/plugins/blockHandlePlugin.tsx`
+  - `src/plugins/selectionFormatPlugin.tsx`
+- Styling includes MDXEditor-specific selectors in `src/App.css`.
+
+## Migration Strategy
+
+Use a staged swap, not a one-shot rewrite.
+
+- Keep the existing app shell, Tauri commands, and file workflow.
+- Introduce a small editor adapter so app code stops depending on MDXEditor directly.
+- Run Milkdown behind a temporary flag until command wiring and markdown roundtrips are stable.
+- Rebuild the custom overlays against Milkdown and ProseMirror only after the core editor flow is working.
+- Remove MDXEditor and Lexical only after parity is acceptable.
+
+## Backlog
+
+### PR 1: Editor contract extraction
+
+Scope:
+- Remove direct `MDXEditorMethods` usage from `src/context/FileContext.tsx`.
+- Define a small editor adapter interface with methods like:
+  - `setMarkdown`
+  - `getMarkdown`
+  - `focus`
+  - `runAction`
+  - `subscribeState`
+
+Acceptance:
+- `src/App.tsx` and `src/components/FloatingBar.tsx` do not need to know whether the backing editor is MDXEditor or Milkdown.
+
+### PR 2: Milkdown spike behind a feature flag
+
+Scope:
+- Add Milkdown packages.
+- Create `src/components/MilkdownEditor.tsx`.
+- Mount Milkdown behind a local flag while keeping MDXEditor as fallback.
+
+Acceptance:
+- Load initial markdown.
+- Emit markdown changes.
+- Support focus.
+- Open, edit, save, and reopen a file successfully.
+
+### PR 3: Markdown and state bridge parity
+
+Scope:
+- Connect Milkdown listeners to dirty tracking and source mode.
+- Update file context logic so it uses the editor adapter instead of `editorRef.current?.setMarkdown(...)`.
+
+Acceptance:
+- `new`, `open`, `save`, `save as`, dirty indicator, close confirm, and source-mode roundtrip all work.
+
+### PR 4: Command bridge migration
+
+Scope:
+- Keep the current Tauri event contract.
+- Reimplement the editor side with Milkdown commands and listeners.
+
+Acceptance:
+- The following actions work through Milkdown:
+  - undo
+  - redo
+  - bold
+  - italic
+  - underline
+  - strikethrough
+  - inline code
+  - headings
+  - quote
+  - bullet list
+  - ordered list
+  - checklist
+  - remove list
+  - link
+  - table
+  - image
+  - thematic break
+
+### PR 5: Feature gap decisions
+
+Scope:
+- Resolve features that may not map cleanly before deeper UI work.
+
+Decision items:
+- frontmatter support
+- checklist behavior parity
+- image upload behavior
+- code block language UX
+
+Acceptance:
+- Each item is implemented, replaced, or intentionally dropped with rationale.
+
+### PR 6: Selection toolbar rewrite
+
+Scope:
+- Replace the current selection formatting overlay with a Milkdown and ProseMirror implementation.
+
+Acceptance:
+- Popup positioning works.
+- Active mark state stays in sync.
+- Block type switching works.
+- Link, code block, and table actions still work.
+
+### PR 7: Block handle rewrite
+
+Scope:
+- Replace the current block handle overlay with a Milkdown and ProseMirror implementation.
+
+Acceptance:
+- Hover and caret block detection work.
+- The block menu supports:
+  - turn into
+  - insert below
+  - move up
+  - move down
+  - delete block
+
+### PR 8: Styling and theming port
+
+Scope:
+- Remove MDXEditor-specific CSS.
+- Restyle Milkdown output to match the current Catppuccin-based UI.
+
+Acceptance:
+- No remaining `.mdxeditor*` selectors.
+- Editor layout, typography, popups, and code blocks are visually aligned with the current app.
+- Light and dark themes both work.
+
+### PR 9: Regression coverage
+
+Scope:
+- Add a manual test matrix and, if worthwhile, lightweight automated coverage around markdown roundtrips.
+
+Test cases:
+- headings
+- nested lists
+- checklists
+- tables
+- code fences
+- images
+- frontmatter
+- source-mode toggle
+- undo and redo
+- open and save flows
+
+Acceptance:
+- The same input markdown produces acceptable saved markdown after edit cycles.
+
+### PR 10: Cutover and cleanup
+
+Scope:
+- Flip the feature flag.
+- Remove MDXEditor, Lexical, and old bridge code after parity is confirmed.
+
+Acceptance:
+- The app builds cleanly with no MDXEditor or Lexical dependencies left.
+
+## Recommended Order
+
+1. PR 1
+2. PR 2
+3. PR 3
+4. PR 4
+5. PR 5
+6. PR 6
+7. PR 7
+8. PR 8
+9. PR 9
+10. PR 10
+
+## Main Risks
+
+- `frontmatter` is currently first-class in the editor and may need custom Milkdown work.
+- The custom overlays currently depend on Lexical behavior and will need full rewrites.
+- A meaningful part of the current visual presentation comes from MDXEditor-specific CSS and CodeMirror-specific styling.
+
+## Definition of Done
+
+- Milkdown replaces MDXEditor for the main editing experience.
+- File operations and dirty tracking behave the same or better.
+- Source mode remains functional.
+- Menu and Tauri actions still work.
+- Block handle and selection toolbar behavior are restored or intentionally revised.
+- Saved markdown output is stable for the supported feature set.

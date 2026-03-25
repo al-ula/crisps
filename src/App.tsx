@@ -1,24 +1,6 @@
 import { useEffect, useRef } from "react";
-import {
-  MDXEditor,
-  headingsPlugin,
-  listsPlugin,
-  quotePlugin,
-  thematicBreakPlugin,
-  markdownShortcutPlugin,
-  linkPlugin,
-  linkDialogPlugin,
-  tablePlugin,
-  imagePlugin,
-  codeBlockPlugin,
-  codeMirrorPlugin,
-  frontmatterPlugin,
-} from "@mdxeditor/editor";
-import "@mdxeditor/editor/style.css";
 import "./App.css";
-import { tauriEditorPlugin } from "./plugins/tauriEditorPlugin";
-import { blockHandlePlugin } from "./plugins/blockHandlePlugin";
-import { selectionFormatPlugin } from "./plugins/selectionFormatPlugin";
+import { EditorHost } from "./components/EditorHost";
 import { FloatingBar } from "./components/FloatingBar";
 import { FileProvider, useFileContext } from "./context/FileContext";
 import { invoke } from "@tauri-apps/api/core";
@@ -32,8 +14,8 @@ if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
 
 function AppInner() {
   const {
-    editorRef,
     fileState,
+    setEditorAdapter,
     handleNew,
     handleOpen,
     handleSave,
@@ -131,51 +113,7 @@ function AppInner() {
         style={{ display: sourceMode ? "none" : undefined }}
         className="editor-container h-full overflow-auto"
       >
-        <MDXEditor
-          ref={editorRef}
-          markdown=""
-          contentEditableClassName="prose max-w-full"
-          onChange={handleEditorChange}
-          plugins={[
-            headingsPlugin(),
-            listsPlugin(),
-            quotePlugin(),
-            thematicBreakPlugin(),
-            linkPlugin(),
-            linkDialogPlugin(),
-            tablePlugin(),
-            imagePlugin({
-              imageUploadHandler: async (file) => {
-                return new Promise((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(reader.result as string);
-                  reader.onerror = reject;
-                  reader.readAsDataURL(file);
-                });
-              },
-            }),
-            frontmatterPlugin(),
-            codeBlockPlugin({ defaultCodeBlockLanguage: "txt" }),
-            codeMirrorPlugin({
-              codeBlockLanguages: {
-                js: "JavaScript",
-                ts: "TypeScript",
-                tsx: "TypeScript (React)",
-                jsx: "JavaScript (React)",
-                css: "CSS",
-                html: "HTML",
-                json: "JSON",
-                rust: "Rust",
-                py: "Python",
-                txt: "Plain text",
-              },
-            }),
-            markdownShortcutPlugin(),
-            tauriEditorPlugin(),
-            blockHandlePlugin(),
-            selectionFormatPlugin(),
-          ]}
-        />
+        <EditorHost onChange={handleEditorChange} onReady={setEditorAdapter} />
       </div>
       {sourceMode && (
         <textarea

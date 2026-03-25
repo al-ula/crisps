@@ -12,6 +12,8 @@
   "dependencies": {
     "@lexical/rich-text": "0.35.0",
     "@mdxeditor/editor": "^3.52.5",
+    "@milkdown/crepe": "7.19.0",
+    "@milkdown/kit": "7.19.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2",

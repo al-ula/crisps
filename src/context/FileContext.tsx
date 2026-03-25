@@ -2,13 +2,19 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useReducer,
   useRef,
   useState,
 } from "react";
-import type { MDXEditorMethods } from "@mdxeditor/editor";
 import { invoke } from "@tauri-apps/api/core";
 import { confirm } from "@tauri-apps/plugin-dialog";
+import {
+  EMPTY_EDITOR_STATE,
+  type EditorAction,
+  type EditorAdapter,
+  type EditorStateSnapshot,
+} from "../editor/types";
 
 interface FileState {
   currentPath: string | null;
@@ -37,11 +43,13 @@ function fileReducer(state: FileState, action: FileAction): FileState {
 interface FileContextValue {
   fileState: FileState;
   dispatch: React.Dispatch<FileAction>;
-  editorRef: React.RefObject<MDXEditorMethods | null>;
+  editorState: EditorStateSnapshot;
+  setEditorAdapter: (adapter: EditorAdapter | null) => void;
   sourceMode: boolean;
   sourceText: string;
   updateSourceText: (text: string) => void;
   handleEditorChange: (markdown: string) => void;
+  handleEditorAction: (action: EditorAction) => Promise<void>;
   loadDocument: (content: string, path: string | null) => void;
   toggleSourceMode: () => void;
   sidebarOpen: boolean;
@@ -65,7 +73,10 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     currentPath: null,
     isDirty: false,
   });
-  const editorRef = useRef<MDXEditorMethods>(null);
+  const editorAdapterRef = useRef<EditorAdapter | null>(null);
+  const editorSubscriptionRef = useRef<(() => void) | null>(null);
+  const adapterVersionRef = useRef(0);
+  const [editorState, setEditorState] = useState(EMPTY_EDITOR_STATE);
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -80,18 +91,55 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
 
   const handleEditorChange = useCallback(
     (markdown: string) => {
-      console.log("[DEBUG]\n" + markdown);
       currentContentRef.current = markdown;
       setDirtyState(markdown);
     },
     [setDirtyState],
   );
 
+  const setEditorAdapter = useCallback((adapter: EditorAdapter | null) => {
+    adapterVersionRef.current += 1;
+    const version = adapterVersionRef.current;
+
+    editorSubscriptionRef.current?.();
+    editorSubscriptionRef.current = null;
+    editorAdapterRef.current = adapter;
+    setEditorState(EMPTY_EDITOR_STATE);
+
+    if (!adapter) return;
+
+    adapter.setMarkdown(currentContentRef.current);
+    void adapter
+      .subscribeState((state) => {
+        if (adapterVersionRef.current === version) {
+          setEditorState(state);
+        }
+      })
+      .then((unsubscribe) => {
+        if (adapterVersionRef.current === version) {
+          editorSubscriptionRef.current = unsubscribe;
+        } else {
+          unsubscribe();
+        }
+      });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      editorSubscriptionRef.current?.();
+    };
+  }, []);
+
+  const getCurrentContent = useCallback(() => {
+    if (sourceMode) return sourceText;
+    return editorAdapterRef.current?.getMarkdown() ?? currentContentRef.current;
+  }, [sourceMode, sourceText]);
+
   const loadDocument = useCallback(
     (content: string, path: string | null) => {
       currentContentRef.current = content;
       savedContentRef.current = content;
-      editorRef.current?.setMarkdown(content);
+      editorAdapterRef.current?.setMarkdown(content);
       setSourceText(content);
       if (path) {
         dispatch({ type: "SET_PATH", path });
@@ -115,15 +163,23 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
 
   function toggleSourceMode() {
     if (!sourceMode) {
-      setSourceText(currentContentRef.current);
+      const content =
+        editorAdapterRef.current?.getMarkdown() ?? currentContentRef.current;
+      currentContentRef.current = content;
+      setSourceText(content);
       setSourceMode(true);
     } else {
       currentContentRef.current = sourceText;
-      editorRef.current?.setMarkdown(sourceText);
+      editorAdapterRef.current?.setMarkdown(sourceText);
       setDirtyState(sourceText);
       setSourceMode(false);
+      editorAdapterRef.current?.focus();
     }
   }
+
+  const handleEditorAction = useCallback(async (action: EditorAction) => {
+    await editorAdapterRef.current?.runAction(action);
+  }, []);
 
   async function guardUnsaved(): Promise<boolean> {
     if (!fileState.isDirty) return true;
@@ -148,7 +204,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       await handleSaveAs();
       return;
     }
-    const content = sourceMode ? sourceText : currentContentRef.current;
+    const content = getCurrentContent();
     await invoke("write_file", { path: fileState.currentPath, content });
     savedContentRef.current = content;
     dispatch({ type: "MARK_CLEAN" });
@@ -159,7 +215,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       defaultPath: fileState.currentPath,
     });
     if (!path) return;
-    const content = sourceMode ? sourceText : currentContentRef.current;
+    const content = getCurrentContent();
     await invoke("write_file", { path, content });
     savedContentRef.current = content;
     dispatch({ type: "SET_PATH", path });
@@ -170,11 +226,13 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       value={{
         fileState,
         dispatch,
-        editorRef,
+        editorState,
+        setEditorAdapter,
         sourceMode,
         sourceText,
         updateSourceText,
         handleEditorChange,
+        handleEditorAction,
         loadDocument,
         toggleSourceMode,
         sidebarOpen,
