@@ -5,14 +5,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useFileContext } from "../context/FileContext";
 
 const BASE_BTN =
-  "inline-flex items-center justify-center w-7 h-[22px] rounded border-0 text-base-content cursor-pointer select-none transition-[background,opacity] duration-100";
+  "inline-flex items-center justify-center w-7 h-[22px] rounded-[var(--window-radius)] border-0 text-base-content cursor-pointer select-none transition-[background,opacity] duration-100";
 
 const IDLE_BTN = `${BASE_BTN} opacity-60 hover:opacity-100 hover:bg-base-300`;
 const ACTIVE_BTN = `${BASE_BTN} opacity-100 bg-base-300`;
-const WIN_BTN = "inline-flex items-center justify-center w-6 h-[22px] rounded border-0 cursor-pointer select-none transition-[background,opacity,color] duration-100";
-const WIN_MIN_BTN = `${WIN_BTN} text-base-content opacity-60 hover:opacity-100 hover:bg-base-300`;
-const WIN_MAX_BTN = `${WIN_BTN} text-base-content opacity-60 hover:opacity-100 hover:bg-base-300`;
-const WIN_CLOSE_BTN = `${WIN_BTN} text-base-content opacity-60 hover:opacity-100 hover:bg-error/20 hover:text-error`;
+const WINDOW_BTN = `${BASE_BTN} opacity-70 hover:opacity-100 hover:bg-base-300`;
 
 type EditorState = {
   canUndo: boolean;
@@ -127,8 +124,19 @@ const INSERT_ACTIONS = new Set(["insertImage", "insertTable", "insertCodeBlock",
 const LIST_ACTIONS = new Set(["bulletList", "orderedList", "checklist", "removeList"]);
 
 export function FloatingBar() {
-  const { handleNew, handleOpen, handleSave, handleSaveAs, sourceMode, toggleSourceMode, sidebarOpen, toggleSidebar } = useFileContext();
+  const {
+    fileState,
+    handleNew,
+    handleOpen,
+    handleSave,
+    handleSaveAs,
+    sourceMode,
+    toggleSourceMode,
+    sidebarOpen,
+    toggleSidebar,
+  } = useFileContext();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [mainPopupStyle, setMainPopupStyle] = useState<React.CSSProperties>({});
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [submenuStyle, setSubmenuStyle] = useState<React.CSSProperties>({});
@@ -159,6 +167,31 @@ export function FloatingBar() {
       if (cancelled) fn();
       else unlisten = fn;
     });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const currentWindow = getCurrentWindow();
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+
+    const syncMaximizedState = async () => {
+      const maximized = await currentWindow.isMaximized();
+      if (!cancelled) setIsMaximized(maximized);
+    };
+
+    syncMaximizedState();
+
+    currentWindow.onResized(() => {
+      void syncMaximizedState();
+    }).then((fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    });
+
     return () => {
       cancelled = true;
       unlisten?.();
@@ -254,6 +287,20 @@ export function FloatingBar() {
     closeSubmenuTimer.current = setTimeout(() => setActiveSubmenuItem(null), 150);
   }
 
+  async function handleMinimize() {
+    await getCurrentWindow().minimize();
+  }
+
+  async function handleToggleMaximize() {
+    const currentWindow = getCurrentWindow();
+    await currentWindow.toggleMaximize();
+    setIsMaximized(await currentWindow.isMaximized());
+  }
+
+  async function handleClose() {
+    await getCurrentWindow().close();
+  }
+
   function cancelCloseSubmenu() {
     if (closeSubmenuTimer.current) {
       clearTimeout(closeSubmenuTimer.current);
@@ -321,6 +368,10 @@ export function FloatingBar() {
   const activeSubmenuData = activeSectionData?.items.find(
     (it) => it.type === "submenu" && it.label === activeSubmenuItem
   ) as Extract<MenuItem, { type: "submenu" }> | undefined;
+  const titleName = fileState.currentPath
+    ? fileState.currentPath.split(/[\\/]/).pop() ?? "Untitled"
+    : "Untitled";
+  const titleLabel = `${fileState.isDirty ? "• " : ""}${titleName}`;
 
   function renderItem(item: MenuItem, i: number, inSubsub = false) {
     if (item.type === "divider") {
@@ -373,10 +424,20 @@ export function FloatingBar() {
   }
 
   return (
-    <div data-tauri-drag-region className="absolute inset-x-0 top-0 z-[1030] h-10 flex items-start justify-between px-2 pt-1.5">
+    <div className="absolute inset-x-0 top-0 z-[1030] h-10 flex items-start justify-between px-2 pt-1.5">
+      <div className="absolute inset-0" data-tauri-drag-region />
+      <div className="pointer-events-none absolute left-1/2 top-1.5 z-10 -translate-x-1/2">
+        <div
+          className="flex h-8 max-w-[min(50vw,24rem)] items-center justify-center rounded-[var(--window-radius)] bg-base-200/75 px-4 text-[12px] font-medium tracking-[0.08em] text-base-content/80 shadow-sm backdrop-blur-sm"
+          data-tauri-drag-region
+          title={titleLabel}
+        >
+          <span className="truncate">{titleLabel}</span>
+        </div>
+      </div>
       <div
         ref={containerRef}
-        className="pointer-events-auto relative flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded px-1.5 py-1 shadow-sm"
+        className="pointer-events-auto relative z-10 flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--window-radius)] px-1.5 py-1 shadow-sm"
       >
         {/* Sidebar toggle */}
         <button
@@ -462,10 +523,9 @@ export function FloatingBar() {
           </div>
         )}
       </div>
-
-      <div className="flex items-start gap-2">
+      <div className="relative z-10 flex items-start gap-2">
         {/* Source mode island */}
-        <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded px-1.5 py-1 shadow-sm">
+        <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--window-radius)] px-1.5 py-1 shadow-sm">
           <button
             className={sourceMode ? ACTIVE_BTN : IDLE_BTN}
             aria-label="Toggle source mode"
@@ -480,38 +540,43 @@ export function FloatingBar() {
             </svg>
           </button>
         </div>
-
-        {/* Window controls island */}
-        <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded px-1.5 py-1 shadow-sm">
+        <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--window-radius)] px-1.5 py-1 shadow-sm">
           <button
-            className={WIN_MIN_BTN}
-            aria-label="Minimize"
+            className={WINDOW_BTN}
+            aria-label="Minimize window"
+            onClick={handleMinimize}
             title="Minimize"
-            onClick={() => getCurrentWindow().minimize()}
           >
-            <svg width="10" height="2" viewBox="0 0 10 2" fill="none">
-              <line x1="0" y1="1" x2="10" y2="1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2 6h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
           <button
-            className={WIN_MAX_BTN}
-            aria-label="Maximize"
-            title="Maximize"
-            onClick={() => getCurrentWindow().toggleMaximize()}
+            className={WINDOW_BTN}
+            aria-label={isMaximized ? "Restore window" : "Maximize window"}
+            onClick={handleToggleMaximize}
+            title={isMaximized ? "Restore down" : "Maximize"}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <rect x="1" y="1" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
+            {isMaximized ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M4.25 2.25h4a1.5 1.5 0 0 1 1.5 1.5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="2.25" y="4.25" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M5 2.25h1.75a1 1 0 0 1 1 1V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <rect x="2.25" y="2.25" width="7.5" height="7.5" rx="1.25" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            )}
           </button>
           <button
-            className={WIN_CLOSE_BTN}
-            aria-label="Close"
+            className={WINDOW_BTN}
+            aria-label="Close window"
+            onClick={handleClose}
             title="Close"
-            onClick={() => getCurrentWindow().close()}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M3 3l6 6M9 3L3 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
         </div>

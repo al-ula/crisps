@@ -1,4 +1,11 @@
-import { createContext, useContext, useReducer, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import type { MDXEditorMethods } from "@mdxeditor/editor";
 import { invoke } from "@tauri-apps/api/core";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -33,7 +40,9 @@ interface FileContextValue {
   editorRef: React.RefObject<MDXEditorMethods | null>;
   sourceMode: boolean;
   sourceText: string;
-  setSourceText: (text: string) => void;
+  updateSourceText: (text: string) => void;
+  handleEditorChange: (markdown: string) => void;
+  loadDocument: (content: string, path: string | null) => void;
   toggleSourceMode: () => void;
   sidebarOpen: boolean;
   toggleSidebar: () => void;
@@ -60,6 +69,45 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const currentContentRef = useRef("");
+  const savedContentRef = useRef("");
+
+  const setDirtyState = useCallback((content: string) => {
+    dispatch({
+      type: content === savedContentRef.current ? "MARK_CLEAN" : "MARK_DIRTY",
+    });
+  }, []);
+
+  const handleEditorChange = useCallback(
+    (markdown: string) => {
+      console.log("[DEBUG]\n" + markdown);
+      currentContentRef.current = markdown;
+      setDirtyState(markdown);
+    },
+    [setDirtyState],
+  );
+
+  const loadDocument = useCallback(
+    (content: string, path: string | null) => {
+      currentContentRef.current = content;
+      savedContentRef.current = content;
+      editorRef.current?.setMarkdown(content);
+      setSourceText(content);
+      if (path) {
+        dispatch({ type: "SET_PATH", path });
+      } else {
+        dispatch({ type: "RESET" });
+      }
+      handleEditorChange(content);
+    },
+    [handleEditorChange],
+  );
+
+  function updateSourceText(text: string) {
+    setSourceText(text);
+    currentContentRef.current = text;
+    setDirtyState(text);
+  }
 
   function toggleSidebar() {
     setSidebarOpen((v) => !v);
@@ -67,11 +115,12 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
 
   function toggleSourceMode() {
     if (!sourceMode) {
-      const md = editorRef.current?.getMarkdown() ?? "";
-      setSourceText(md);
+      setSourceText(currentContentRef.current);
       setSourceMode(true);
     } else {
+      currentContentRef.current = sourceText;
       editorRef.current?.setMarkdown(sourceText);
+      setDirtyState(sourceText);
       setSourceMode(false);
     }
   }
@@ -82,20 +131,16 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function handleNew(): Promise<void> {
-    if (!await guardUnsaved()) return;
-    editorRef.current?.setMarkdown("");
-    if (sourceMode) setSourceText("");
-    dispatch({ type: "RESET" });
+    if (!(await guardUnsaved())) return;
+    loadDocument("", null);
   }
 
   async function handleOpen(): Promise<void> {
-    if (!await guardUnsaved()) return;
+    if (!(await guardUnsaved())) return;
     const path = await invoke<string | null>("open_file_dialog");
     if (!path) return;
     const content = await invoke<string>("read_file", { path });
-    editorRef.current?.setMarkdown(content);
-    if (sourceMode) setSourceText(content);
-    dispatch({ type: "SET_PATH", path });
+    loadDocument(content, path);
   }
 
   async function handleSave(): Promise<void> {
@@ -103,8 +148,9 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       await handleSaveAs();
       return;
     }
-    const content = sourceMode ? sourceText : (editorRef.current?.getMarkdown() ?? "");
+    const content = sourceMode ? sourceText : currentContentRef.current;
     await invoke("write_file", { path: fileState.currentPath, content });
+    savedContentRef.current = content;
     dispatch({ type: "MARK_CLEAN" });
   }
 
@@ -113,8 +159,9 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       defaultPath: fileState.currentPath,
     });
     if (!path) return;
-    const content = sourceMode ? sourceText : (editorRef.current?.getMarkdown() ?? "");
+    const content = sourceMode ? sourceText : currentContentRef.current;
     await invoke("write_file", { path, content });
+    savedContentRef.current = content;
     dispatch({ type: "SET_PATH", path });
   }
 
@@ -126,7 +173,9 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         editorRef,
         sourceMode,
         sourceText,
-        setSourceText,
+        updateSourceText,
+        handleEditorChange,
+        loadDocument,
         toggleSourceMode,
         sidebarOpen,
         toggleSidebar,

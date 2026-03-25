@@ -31,26 +31,38 @@ if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
 }
 
 function AppInner() {
-  const { editorRef, dispatch, fileState, handleNew, handleOpen, handleSave, handleSaveAs,
-    sourceMode, sourceText, setSourceText } = useFileContext();
+  const {
+    editorRef,
+    fileState,
+    handleNew,
+    handleOpen,
+    handleSave,
+    handleSaveAs,
+    handleEditorChange,
+    loadDocument,
+    sourceMode,
+    sourceText,
+    updateSourceText,
+  } = useFileContext();
 
   // Load file passed via CLI argument on startup
   useEffect(() => {
     invoke<string | null>("get_cli_file").then((path) => {
       if (!path) return;
       invoke<string>("read_file", { path }).then((content) => {
-        editorRef.current?.setMarkdown(content);
-        dispatch({ type: "SET_PATH", path });
+        loadDocument(content, path);
       });
     });
-  }, []);
+  }, [loadDocument]);
 
   // Update window title when file state changes
   useEffect(() => {
     const name = fileState.currentPath
-      ? fileState.currentPath.split(/[\\/]/).pop() ?? "Untitled"
+      ? (fileState.currentPath.split(/[\\/]/).pop() ?? "Untitled")
       : "Untitled";
-    getCurrentWindow().setTitle(`${fileState.isDirty ? "* " : ""}${name} — markdown-editor`);
+    getCurrentWindow().setTitle(
+      `${fileState.isDirty ? "* " : ""}${name} — markdown-editor`,
+    );
   }, [fileState.currentPath, fileState.isDirty]);
 
   // Keep a ref so the close handler always sees the latest isDirty without re-registering
@@ -64,7 +76,10 @@ function AppInner() {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
     listen("close-requested", async () => {
-      if (!isDirtyRef.current || await confirm("You have unsaved changes. Close without saving?")) {
+      if (
+        !isDirtyRef.current ||
+        (await confirm("You have unsaved changes. Close without saving?"))
+      ) {
         invoke("force_close");
       }
     }).then((fn) => {
@@ -105,21 +120,22 @@ function AppInner() {
     <div className="relative h-full w-full">
       <div
         className="absolute left-0 top-4 bottom-4 w-1 z-[1040] cursor-ew-resize"
-        onMouseDown={() => getCurrentWindow().startResizeDragging('West')}
+        onMouseDown={() => getCurrentWindow().startResizeDragging("West")}
       />
       <div
         className="absolute right-0 top-4 bottom-4 w-1 z-[1040] cursor-ew-resize"
-        onMouseDown={() => getCurrentWindow().startResizeDragging('East')}
+        onMouseDown={() => getCurrentWindow().startResizeDragging("East")}
       />
       <FloatingBar />
-      <div style={{ display: sourceMode ? "none" : undefined }} className="editor-container h-full overflow-auto">
+      <div
+        style={{ display: sourceMode ? "none" : undefined }}
+        className="editor-container h-full overflow-auto"
+      >
         <MDXEditor
           ref={editorRef}
           markdown=""
           contentEditableClassName="prose max-w-full"
-          onChange={(_md, initialNormalize) => {
-            if (!initialNormalize) dispatch({ type: "MARK_DIRTY" });
-          }}
+          onChange={handleEditorChange}
           plugins={[
             headingsPlugin(),
             listsPlugin(),
@@ -166,8 +182,7 @@ function AppInner() {
           className="source-mode-editor"
           value={sourceText}
           onChange={(e) => {
-            setSourceText(e.target.value);
-            dispatch({ type: "MARK_DIRTY" });
+            updateSourceText(e.target.value);
           }}
           spellCheck={false}
           autoFocus

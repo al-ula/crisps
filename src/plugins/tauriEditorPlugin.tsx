@@ -46,8 +46,19 @@ type EditorActionPayload = {
 };
 
 function TauriEditorBridge() {
-  const [activeEditor, currentFormat, currentBlockType, currentListType, focused] =
-    useCellValues(activeEditor$, currentFormat$, currentBlockType$, currentListType$, inFocus$);
+  const [
+    activeEditor,
+    currentFormat,
+    currentBlockType,
+    currentListType,
+    focused,
+  ] = useCellValues(
+    activeEditor$,
+    currentFormat$,
+    currentBlockType$,
+    currentListType$,
+    inFocus$,
+  );
 
   const activeEditorRef = useRef(activeEditor);
   useEffect(() => {
@@ -61,15 +72,24 @@ function TauriEditorBridge() {
     if (!activeEditor) return;
     const unregisterUndo = activeEditor.registerCommand(
       CAN_UNDO_COMMAND,
-      (payload) => { setCanUndo(payload); return false; },
+      (payload) => {
+        setCanUndo(payload);
+        return false;
+      },
       COMMAND_PRIORITY_LOW,
     );
     const unregisterRedo = activeEditor.registerCommand(
       CAN_REDO_COMMAND,
-      (payload) => { setCanRedo(payload); return false; },
+      (payload) => {
+        setCanRedo(payload);
+        return false;
+      },
       COMMAND_PRIORITY_LOW,
     );
-    return () => { unregisterUndo(); unregisterRedo(); };
+    return () => {
+      unregisterUndo();
+      unregisterRedo();
+    };
   }, [activeEditor]);
 
   const applyFormat = usePublisher(applyFormat$);
@@ -85,18 +105,25 @@ function TauriEditorBridge() {
   // Emit editor state whenever it changes
   useEffect(() => {
     emit("editor-state", {
-      bold:          (currentFormat & IS_BOLD)          !== 0,
-      italic:        (currentFormat & IS_ITALIC)         !== 0,
-      underline:     (currentFormat & IS_UNDERLINE)      !== 0,
-      strikethrough: (currentFormat & IS_STRIKETHROUGH)  !== 0,
-      code:          (currentFormat & IS_CODE)           !== 0,
-      blockType:     currentBlockType,
-      listType:      currentListType,
+      bold: (currentFormat & IS_BOLD) !== 0,
+      italic: (currentFormat & IS_ITALIC) !== 0,
+      underline: (currentFormat & IS_UNDERLINE) !== 0,
+      strikethrough: (currentFormat & IS_STRIKETHROUGH) !== 0,
+      code: (currentFormat & IS_CODE) !== 0,
+      blockType: currentBlockType,
+      listType: currentListType,
       focused,
       canUndo,
       canRedo,
     });
-  }, [currentFormat, currentBlockType, currentListType, focused, canUndo, canRedo]);
+  }, [
+    currentFormat,
+    currentBlockType,
+    currentListType,
+    focused,
+    canUndo,
+    canRedo,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,7 +131,17 @@ function TauriEditorBridge() {
 
     listen<EditorActionPayload>("editor-action", (event) => {
       const editor = activeEditorRef.current;
-      const { action, block_type: blockType, rows, columns } = event.payload as { action: string; block_type?: string; rows?: number; columns?: number };
+      const {
+        action,
+        block_type: blockType,
+        rows,
+        columns,
+      } = event.payload as {
+        action: string;
+        block_type?: string;
+        rows?: number;
+        columns?: number;
+      };
 
       switch (action) {
         case "undo":
@@ -143,7 +180,7 @@ function TauriEditorBridge() {
             convertSelectionToNode(() => $createQuoteNode());
           } else {
             convertSelectionToNode(() =>
-              $createHeadingNode(blockType as HeadingTagType)
+              $createHeadingNode(blockType as HeadingTagType),
             );
           }
           break;
