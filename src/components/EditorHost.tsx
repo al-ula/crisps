@@ -1,7 +1,16 @@
+import { Suspense, lazy } from "react";
 import { EDITOR_ENGINE } from "../editor/flags";
 import type { EditorAdapter } from "../editor/types";
-import { MdxEditor } from "./MdxEditor";
-import { MilkdownEditor } from "./MilkdownEditor";
+
+const MdxEditor = lazy(async () => {
+  const module = await import("./MdxEditor");
+  return { default: module.MdxEditor };
+});
+
+const MilkdownEditor = lazy(async () => {
+  const module = await import("./MilkdownEditor");
+  return { default: module.MilkdownEditor };
+});
 
 interface EditorHostProps {
   onChange: (markdown: string) => void;
@@ -9,9 +18,11 @@ interface EditorHostProps {
 }
 
 export function EditorHost({ onChange, onReady }: EditorHostProps) {
-  if (EDITOR_ENGINE === "milkdown") {
-    return <MilkdownEditor onChange={onChange} onReady={onReady} />;
-  }
+  const ActiveEditor = EDITOR_ENGINE === "milkdown" ? MilkdownEditor : MdxEditor;
 
-  return <MdxEditor onChange={onChange} onReady={onReady} />;
+  return (
+    <Suspense fallback={<div className="h-full" />}>
+      <ActiveEditor onChange={onChange} onReady={onReady} />
+    </Suspense>
+  );
 }

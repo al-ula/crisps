@@ -5,9 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm dev",
     "build": "tsc && vite build",
+    "build:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm tauri dev",
+    "tauri:build:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm tauri build"
   },
   "dependencies": {
     "@lexical/rich-text": "0.35.0",
