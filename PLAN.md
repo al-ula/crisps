@@ -24,8 +24,8 @@ Use a staged swap, not a one-shot rewrite.
 
 ## Progress Snapshot
 
-- Done: PR 1, PR 2, PR 3, MDX fallback removal.
-- In progress: PR 4, PR 5, PR 8.
+- Done: PR 1, PR 2, PR 3, PR 4, PR 5, MDX fallback removal.
+- In progress: PR 8.
 - Pending: PR 6, PR 7, PR 9, PR 10.
 
 ## Backlog
@@ -74,7 +74,7 @@ Acceptance:
 
 ### PR 4: Command bridge migration
 
-Status: in progress.
+Status: done.
 
 Scope:
 - Keep the current Tauri event contract.
@@ -101,7 +101,7 @@ Acceptance:
 
 ### PR 5: Feature gap decisions
 
-Status: in progress.
+Status: done.
 
 Scope:
 - Resolve features that may not map cleanly before deeper UI work.
@@ -111,6 +111,12 @@ Decision items:
 - checklist behavior parity
 - image upload behavior
 - code block language UX
+
+Resolution:
+- Frontmatter stays outside the Milkdown document tree and is preserved through `splitFrontmatter` / `joinFrontmatter`, with `insertFrontmatter` seeding an empty frontmatter block when missing.
+- Checklist behavior is implemented by rewriting Milkdown list item `checked` attributes on top of bullet lists, which preserves markdown checklist output without depending on Lexical behavior.
+- Image insertion keeps both URL entry and local upload, with local files converted to data URLs to match the existing self-contained markdown flow.
+- Code blocks now use Milkdown's built-in CodeMirror language picker, backed by the old MDX language list, and toolbar insertion defaults new fences to `txt`.
 
 Acceptance:
 - Each item is implemented, replaced, or intentionally dropped with rationale.

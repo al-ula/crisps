@@ -36,6 +36,11 @@ import type { EditorState } from "@milkdown/kit/prose/state";
 import { liftTarget } from "@milkdown/kit/prose/transform";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { callCommand, replaceAll } from "@milkdown/kit/utils";
+import {
+  CODE_BLOCK_CODEMIRROR_LANGUAGES,
+  DEFAULT_CODE_BLOCK_LANGUAGE,
+  renderCodeBlockLanguage,
+} from "../editor/codeBlockLanguages";
 import { joinFrontmatter, splitFrontmatter } from "../editor/frontmatter";
 import {
   createTauriEditorAdapter,
@@ -84,6 +89,10 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       root: rootRef.current,
       defaultValue: "",
       featureConfigs: {
+        [Crepe.Feature.CodeMirror]: {
+          languages: CODE_BLOCK_CODEMIRROR_LANGUAGES,
+          renderLanguage: renderCodeBlockLanguage,
+        },
         [Crepe.Feature.ImageBlock]: {
           onUpload: readFileAsDataUrl,
           blockOnUpload: readFileAsDataUrl,
@@ -337,7 +346,9 @@ async function runMilkdownAction(
       crepe.editor.action(callCommand(insertHrCommand.key));
       return;
     case "insertCodeBlock":
-      crepe.editor.action(callCommand(createCodeBlockCommand.key));
+      crepe.editor.action(
+        callCommand(createCodeBlockCommand.key, DEFAULT_CODE_BLOCK_LANGUAGE),
+      );
       return;
     case "insertFrontmatter": {
       if (frontmatterRef.current) return;
