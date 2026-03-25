@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "vite",
     "dev:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm dev",
+    "dev:mdx": "VITE_EDITOR_ENGINE=mdx pnpm dev",
     "build": "tsc && vite build",
     "build:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm build",
+    "build:mdx": "VITE_EDITOR_ENGINE=mdx pnpm build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm tauri dev",
-    "tauri:build:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm tauri build"
+    "tauri:dev:mdx": "VITE_EDITOR_ENGINE=mdx pnpm tauri dev",
+    "tauri:build:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm tauri build",
+    "tauri:build:mdx": "VITE_EDITOR_ENGINE=mdx pnpm tauri build"
   },
   "dependencies": {
     "@lexical/rich-text": "0.35.0",

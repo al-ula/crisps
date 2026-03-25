@@ -6,27 +6,37 @@ Migrate the editor from `@mdxeditor/editor` to Milkdown without regressing file 
 
 ## Current State
 
-- The editor is mounted directly in `src/App.tsx` with `MDXEditor` and a stack of MDXEditor plugins.
-- File state and save logic in `src/context/FileContext.tsx` depend on `MDXEditorMethods`.
-- Menu and Tauri actions are bridged through `src/components/FloatingBar.tsx`, `src/plugins/tauriEditorPlugin.tsx`, and `src-tauri/src/lib.rs`.
-- Two custom overlays are tightly coupled to Lexical and MDXEditor internals:
+- `src/components/EditorHost.tsx` now defaults to `MilkdownEditor`, with `MdxEditor` still available behind `VITE_EDITOR_ENGINE=mdx`.
+- File state and save logic in `src/context/FileContext.tsx` now depend on `EditorAdapter`, not `MDXEditorMethods`.
+- Menu and Tauri actions are still bridged through `src/components/FloatingBar.tsx`, `src/editor/tauriBridge.ts`, and `src-tauri/src/lib.rs`.
+- The Milkdown path exists in `src/components/MilkdownEditor.tsx` with markdown sync, state snapshots, and action handling.
+- The old MDXEditor/Lexical overlays remain for fallback and still drive:
+  - `src/components/MdxEditor.tsx`
   - `src/plugins/blockHandlePlugin.tsx`
   - `src/plugins/selectionFormatPlugin.tsx`
-- Styling includes MDXEditor-specific selectors in `src/App.css`.
+- Styling now includes both MDXEditor-specific selectors and Milkdown overrides in `src/App.css`.
 
 ## Migration Strategy
 
 Use a staged swap, not a one-shot rewrite.
 
 - Keep the existing app shell, Tauri commands, and file workflow.
-- Introduce a small editor adapter so app code stops depending on MDXEditor directly.
-- Run Milkdown behind a temporary flag until command wiring and markdown roundtrips are stable.
+- The editor adapter and feature-flagged host already exist, so the remaining work is parity and cutover.
+- Keep Milkdown available behind the flag until command wiring, source mode, and markdown roundtrips are stable.
 - Rebuild the custom overlays against Milkdown and ProseMirror only after the core editor flow is working.
 - Remove MDXEditor and Lexical only after parity is acceptable.
+
+## Progress Snapshot
+
+- Done: PR 1, PR 2, PR 3.
+- In progress: PR 4, PR 5, PR 8.
+- Pending: PR 6, PR 7, PR 9, PR 10.
 
 ## Backlog
 
 ### PR 1: Editor contract extraction
+
+Status: done.
 
 Scope:
 - Remove direct `MDXEditorMethods` usage from `src/context/FileContext.tsx`.
@@ -42,6 +52,8 @@ Acceptance:
 
 ### PR 2: Milkdown spike behind a feature flag
 
+Status: done.
+
 Scope:
 - Add Milkdown packages.
 - Create `src/components/MilkdownEditor.tsx`.
@@ -55,6 +67,8 @@ Acceptance:
 
 ### PR 3: Markdown and state bridge parity
 
+Status: done.
+
 Scope:
 - Connect Milkdown listeners to dirty tracking and source mode.
 - Update file context logic so it uses the editor adapter instead of `editorRef.current?.setMarkdown(...)`.
@@ -63,6 +77,8 @@ Acceptance:
 - `new`, `open`, `save`, `save as`, dirty indicator, close confirm, and source-mode roundtrip all work.
 
 ### PR 4: Command bridge migration
+
+Status: in progress.
 
 Scope:
 - Keep the current Tauri event contract.
@@ -90,6 +106,8 @@ Acceptance:
 
 ### PR 5: Feature gap decisions
 
+Status: in progress.
+
 Scope:
 - Resolve features that may not map cleanly before deeper UI work.
 
@@ -104,6 +122,8 @@ Acceptance:
 
 ### PR 6: Selection toolbar rewrite
 
+Status: pending.
+
 Scope:
 - Replace the current selection formatting overlay with a Milkdown and ProseMirror implementation.
 
@@ -114,6 +134,8 @@ Acceptance:
 - Link, code block, and table actions still work.
 
 ### PR 7: Block handle rewrite
+
+Status: pending.
 
 Scope:
 - Replace the current block handle overlay with a Milkdown and ProseMirror implementation.
@@ -129,6 +151,8 @@ Acceptance:
 
 ### PR 8: Styling and theming port
 
+Status: in progress.
+
 Scope:
 - Remove MDXEditor-specific CSS.
 - Restyle Milkdown output to match the current Catppuccin-based UI.
@@ -139,6 +163,8 @@ Acceptance:
 - Light and dark themes both work.
 
 ### PR 9: Regression coverage
+
+Status: pending.
 
 Scope:
 - Add a manual test matrix and, if worthwhile, lightweight automated coverage around markdown roundtrips.
@@ -159,6 +185,8 @@ Acceptance:
 - The same input markdown produces acceptable saved markdown after edit cycles.
 
 ### PR 10: Cutover and cleanup
+
+Status: pending.
 
 Scope:
 - Flip the feature flag.

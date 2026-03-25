@@ -131,8 +131,19 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const getCurrentContent = useCallback(() => {
+    if (sourceMode) {
+      currentContentRef.current = sourceText;
+      return sourceText;
+    }
+
+    const markdown = editorAdapterRef.current?.getMarkdown();
+    if (markdown != null) {
+      currentContentRef.current = markdown;
+      return markdown;
+    }
+
     return currentContentRef.current;
-  }, []);
+  }, [sourceMode, sourceText]);
 
   const loadDocument = useCallback(
     (content: string, path: string | null) => {
@@ -162,7 +173,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
 
   function toggleSourceMode() {
     if (!sourceMode) {
-      setSourceText(currentContentRef.current);
+      setSourceText(getCurrentContent());
       setSourceMode(true);
     } else {
       currentContentRef.current = sourceText;
