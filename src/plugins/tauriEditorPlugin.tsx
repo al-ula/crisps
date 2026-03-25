@@ -27,7 +27,6 @@ import {
   COMMAND_PRIORITY_LOW,
   IS_BOLD,
   IS_ITALIC,
-  IS_UNDERLINE,
   IS_STRIKETHROUGH,
   IS_CODE,
 } from "lexical";
@@ -107,7 +106,6 @@ function TauriEditorBridge() {
     emit("editor-state", {
       bold: (currentFormat & IS_BOLD) !== 0,
       italic: (currentFormat & IS_ITALIC) !== 0,
-      underline: (currentFormat & IS_UNDERLINE) !== 0,
       strikethrough: (currentFormat & IS_STRIKETHROUGH) !== 0,
       code: (currentFormat & IS_CODE) !== 0,
       blockType: currentBlockType,
@@ -152,7 +150,6 @@ function TauriEditorBridge() {
           break;
         case "bold":
         case "italic":
-        case "underline":
         case "strikethrough":
         case "subscript":
         case "superscript":

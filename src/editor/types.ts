@@ -13,7 +13,6 @@ export type EditorActionName =
   | "redo"
   | "bold"
   | "italic"
-  | "underline"
   | "strikethrough"
   | "subscript"
   | "superscript"
@@ -42,7 +41,6 @@ export interface EditorStateSnapshot {
   canRedo: boolean;
   bold: boolean;
   italic: boolean;
-  underline: boolean;
   strikethrough: boolean;
   code: boolean;
   blockType: string;
@@ -65,7 +63,6 @@ export const EMPTY_EDITOR_STATE: EditorStateSnapshot = {
   canRedo: false,
   bold: false,
   italic: false,
-  underline: false,
   strikethrough: false,
   code: false,
   blockType: "paragraph",

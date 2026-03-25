@@ -97,13 +97,6 @@ const MENU_SECTIONS: MenuSection[] = [
       },
       {
         type: "item",
-        label: "Underline",
-        shortcut: "Ctrl+U",
-        action: "underline",
-        activeKey: "underline",
-      },
-      {
-        type: "item",
         label: "Strikethrough",
         action: "strikethrough",
         activeKey: "strikethrough",
@@ -148,7 +141,6 @@ const FILE_ACTIONS = new Set(["new", "open", "save", "saveAs"]);
 const FORMAT_ACTIONS = new Set([
   "bold",
   "italic",
-  "underline",
   "strikethrough",
   "code",
   "subscript",

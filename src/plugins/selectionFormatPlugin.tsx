@@ -12,7 +12,7 @@ import {
   openLinkEditDialog$,
 } from "@mdxeditor/editor";
 import { useCellValues, usePublisher } from "@mdxeditor/editor";
-import { $getSelection, $isRangeSelection, IS_BOLD, IS_ITALIC, IS_UNDERLINE, IS_STRIKETHROUGH, IS_CODE, IS_SUBSCRIPT, IS_SUPERSCRIPT, $createParagraphNode } from "lexical";
+import { $getSelection, $isRangeSelection, IS_BOLD, IS_ITALIC, IS_STRIKETHROUGH, IS_CODE, IS_SUBSCRIPT, IS_SUPERSCRIPT, $createParagraphNode } from "lexical";
 import { $createHeadingNode, $createQuoteNode, type HeadingTagType } from "@lexical/rich-text";
 
 const POPUP_W = 240;
@@ -78,7 +78,6 @@ function SelectionFormatOverlay() {
 
   const bold          = (currentFormat & IS_BOLD)          !== 0;
   const italic        = (currentFormat & IS_ITALIC)        !== 0;
-  const underline     = (currentFormat & IS_UNDERLINE)     !== 0;
   const strikethrough = (currentFormat & IS_STRIKETHROUGH) !== 0;
   const code          = (currentFormat & IS_CODE)          !== 0;
   const subscript     = (currentFormat & IS_SUBSCRIPT)     !== 0;
@@ -120,7 +119,6 @@ function SelectionFormatOverlay() {
       <div className="selection-format-row">
         {fmt("bold",          bold,          <b>B</b>)}
         {fmt("italic",        italic,        <i>I</i>)}
-        {fmt("underline",     underline,     <u>U</u>)}
         {fmt("strikethrough", strikethrough, <s>S</s>)}
         {fmt("code",          code,          <code>`</code>)}
         {fmt("subscript",     subscript,     <sub>x</sub>)}

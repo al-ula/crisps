@@ -200,7 +200,6 @@ async function runMilkdownAction(
     case "italic":
       crepe.editor.action(callCommand(toggleEmphasisCommand.key));
       return;
-    case "underline":
     case "subscript":
     case "superscript":
       return;
@@ -469,7 +468,6 @@ function buildEditorState(view: EditorView): EditorStateSnapshot {
     canRedo: redoDepth(state) > 0,
     bold: isMarkActive(state, "strong"),
     italic: isMarkActive(state, "emphasis"),
-    underline: false,
     strikethrough: isMarkActive(state, "strike_through"),
     code: isMarkActive(state, "inline_code"),
     blockType,
