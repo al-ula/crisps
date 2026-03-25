@@ -14,6 +14,7 @@ export type EditorActionName =
   | "bold"
   | "italic"
   | "strikethrough"
+  | "latex"
   | "subscript"
   | "superscript"
   | "code"
@@ -42,6 +43,7 @@ export interface EditorStateSnapshot {
   bold: boolean;
   italic: boolean;
   strikethrough: boolean;
+  latex: boolean;
   code: boolean;
   blockType: string;
   listType: string;
@@ -64,6 +66,7 @@ export const EMPTY_EDITOR_STATE: EditorStateSnapshot = {
   bold: false,
   italic: false,
   strikethrough: false,
+  latex: false,
   code: false,
   blockType: "paragraph",
   listType: "",

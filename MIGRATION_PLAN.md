@@ -10,23 +10,25 @@ Finish the Milkdown migration without regressing file handling, source mode, men
 - File state and save logic in `src/context/FileContext.tsx` now depend on `EditorAdapter`, not `MDXEditorMethods`.
 - Menu and Tauri actions are still bridged through `src/components/FloatingBar.tsx`, `src/editor/tauriBridge.ts`, and `src-tauri/src/lib.rs`.
 - The Milkdown path exists in `src/components/MilkdownEditor.tsx` with markdown sync, state snapshots, and action handling.
-- The MDXEditor/Lexical fallback has been removed, so the remaining work is Milkdown parity, styling cleanup, and regression coverage.
-- Styling still includes legacy selectors that were written for the old migration stages in `src/App.css`.
+- The MDXEditor/Lexical fallback and feature-flag cutover have already been removed.
+- No `.mdxeditor*` selectors remain.
+- Crepe's built-in selection toolbar is disabled and replaced with a custom Milkdown-backed selection toolbar and custom link popup.
+- The block handle overlay is still the main large missing migration item, and final visual polish is still outstanding.
 
 ## Migration Strategy
 
 Use a staged swap, not a one-shot rewrite.
 
 - Keep the existing app shell, Tauri commands, and file workflow.
-- The editor adapter and single-editor host already exist, so the remaining work is parity and cleanup.
+- The editor adapter and single-editor host already exist, so the remaining work is overlay parity, cleanup, and coverage.
 - Rebuild the custom overlays against Milkdown and ProseMirror only after the core editor flow is working.
 - Finish removing legacy migration scaffolding as parity lands.
 
 ## Progress Snapshot
 
-- Done: PR 1, PR 2, PR 3, PR 4, PR 5, MDX fallback removal.
+- Done: PR 1, PR 2, PR 3, PR 4, PR 5, PR 6, PR 10, MDX fallback removal.
 - In progress: PR 8.
-- Pending: PR 6, PR 7, PR 9, PR 10.
+- Pending: PR 7, PR 9.
 
 ## Backlog
 
@@ -123,7 +125,7 @@ Acceptance:
 
 ### PR 6: Selection toolbar rewrite
 
-Status: pending.
+Status: done.
 
 Scope:
 - Replace the current selection formatting overlay with a Milkdown and ProseMirror implementation.
@@ -132,7 +134,9 @@ Acceptance:
 - Popup positioning works.
 - Active mark state stays in sync.
 - Block type switching works.
-- Link, code block, and table actions still work.
+- Link actions work through the custom popup flow.
+- The selection popup avoids the top floating bar and only appears for real text selections.
+- The selection toolbar now intentionally focuses on inline formatting and link actions; table insertion stays in the main insert/menu flow.
 
 ### PR 7: Block handle rewrite
 
@@ -157,6 +161,7 @@ Status: in progress.
 Scope:
 - Remove MDXEditor-specific CSS.
 - Restyle Milkdown output to match the current Catppuccin-based UI.
+- Align custom overlays and popups with the floating bar and the rest of the app chrome.
 
 Acceptance:
 - No remaining `.mdxeditor*` selectors.
@@ -187,7 +192,7 @@ Acceptance:
 
 ### PR 10: Cutover and cleanup
 
-Status: pending.
+Status: done.
 
 Scope:
 - Flip the feature flag.
@@ -196,24 +201,17 @@ Scope:
 Acceptance:
 - The app builds cleanly with no MDXEditor or Lexical dependencies left.
 
-## Recommended Order
+## Remaining Recommended Order
 
-1. PR 1
-2. PR 2
-3. PR 3
-4. PR 4
-5. PR 5
-6. PR 6
-7. PR 7
-8. PR 8
-9. PR 9
-10. PR 10
+1. PR 7
+2. PR 8
+3. PR 9
 
 ## Main Risks
 
-- `frontmatter` is currently first-class in the editor and may need custom Milkdown work.
-- The custom overlays still need Milkdown-native rewrites to replace the removed Lexical implementations.
-- A meaningful part of the current visual presentation still comes from migration-era CSS and CodeMirror-specific styling.
+- `frontmatter` is currently first-class in the editor and may need custom Milkdown work if edge cases show up.
+- The block handle overlay still needs a full Milkdown-native rewrite to replace the removed Lexical implementation.
+- Styling still needs final alignment across editor chrome, popups, and code-block UI in both themes.
 
 ## Definition of Done
 

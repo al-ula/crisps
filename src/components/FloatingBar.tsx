@@ -142,6 +142,7 @@ const FORMAT_ACTIONS = new Set([
   "bold",
   "italic",
   "strikethrough",
+  "latex",
   "code",
   "subscript",
   "superscript",

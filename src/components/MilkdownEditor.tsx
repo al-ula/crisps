@@ -1,4 +1,12 @@
-import { type MutableRefObject, useEffect, useRef } from "react";
+import {
+  type CSSProperties,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Crepe } from "@milkdown/crepe";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
@@ -18,9 +26,7 @@ import {
   setBlockTypeCommand,
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
-  toggleLinkCommand,
   toggleStrongCommand,
-  updateLinkCommand,
   wrapInBlockquoteCommand,
   wrapInBulletListCommand,
   wrapInHeadingCommand,
@@ -32,7 +38,8 @@ import {
   toggleStrikethroughCommand,
 } from "@milkdown/kit/preset/gfm";
 import { undoDepth, redoDepth } from "@milkdown/kit/prose/history";
-import type { EditorState } from "@milkdown/kit/prose/state";
+import { NodeSelection, TextSelection, type EditorState } from "@milkdown/kit/prose/state";
+import { findNodeInSelection } from "@milkdown/kit/prose";
 import { liftTarget } from "@milkdown/kit/prose/transform";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { callCommand, replaceAll } from "@milkdown/kit/utils";
@@ -47,6 +54,9 @@ import {
   emitEditorState,
   listenForEditorActions,
 } from "../editor/tauriBridge";
+import { LinkPopup, type LinkPopupValue } from "./LinkPopup";
+import { SelectionToolbar } from "./SelectionToolbar";
+import { EMPTY_EDITOR_STATE } from "../editor/types";
 import type {
   EditorAction,
   EditorAdapter,
@@ -60,10 +70,33 @@ interface MilkdownEditorProps {
 
 export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const linkPopupRef = useRef<HTMLFormElement>(null);
+  const linkNameInputRef = useRef<HTMLInputElement>(null);
+  const linkHrefInputRef = useRef<HTMLInputElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
   const frontmatterRef = useRef("");
   const onChangeRef = useRef(onChange);
   const suppressNextMarkdownUpdateRef = useRef(false);
   const suppressMarkdownTimerRef = useRef<number | null>(null);
+  const toolbarRefreshFrameRef = useRef<number | null>(null);
+  const crepeRef = useRef<Crepe | null>(null);
+  const [toolbarState, setToolbarState] = useState<{
+    editorState: EditorStateSnapshot;
+    style: CSSProperties;
+    visible: boolean;
+  }>({
+    editorState: EMPTY_EDITOR_STATE,
+    style: {},
+    visible: false,
+  });
+  const [linkPopupState, setLinkPopupState] = useState<{
+    style: CSSProperties;
+    value: LinkPopupValue | null;
+  }>({
+    style: {},
+    value: null,
+  });
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -88,6 +121,9 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
     const crepe = new Crepe({
       root: rootRef.current,
       defaultValue: "",
+      features: {
+        [Crepe.Feature.Toolbar]: false,
+      },
       featureConfigs: {
         [Crepe.Feature.CodeMirror]: {
           languages: CODE_BLOCK_CODEMIRROR_LANGUAGES,
@@ -100,9 +136,30 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
         },
       },
     });
+    crepeRef.current = crepe;
+
+    const refreshToolbarState = (view: EditorView) => {
+      const nextEditorState = buildEditorState(view);
+      setToolbarState(buildSelectionToolbarState(view, nextEditorState, toolbarRef.current));
+    };
+
+    const scheduleToolbarRefresh = (view: EditorView) => {
+      viewRef.current = view;
+      if (toolbarRefreshFrameRef.current != null) {
+        window.cancelAnimationFrame(toolbarRefreshFrameRef.current);
+      }
+      toolbarRefreshFrameRef.current = window.requestAnimationFrame(() => {
+        toolbarRefreshFrameRef.current = null;
+        if (viewRef.current) {
+          refreshToolbarState(viewRef.current);
+        }
+      });
+    };
 
     const emitSnapshot = (view: EditorView) => {
-      void emitEditorState(buildEditorState(view));
+      const nextEditorState = buildEditorState(view);
+      void emitEditorState(nextEditorState);
+      scheduleToolbarRefresh(view);
     };
 
     crepe.on((listener) => {
@@ -172,7 +229,11 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
           action,
           frontmatterRef,
           onChangeRef.current,
+          setLinkPopupState,
         );
+        crepe.editor.action((ctx) => {
+          scheduleToolbarRefresh(ctx.get(editorViewCtx));
+        });
       });
     });
 
@@ -181,13 +242,168 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       if (suppressMarkdownTimerRef.current != null) {
         window.clearTimeout(suppressMarkdownTimerRef.current);
       }
+      if (toolbarRefreshFrameRef.current != null) {
+        window.cancelAnimationFrame(toolbarRefreshFrameRef.current);
+      }
+      crepeRef.current = null;
+      viewRef.current = null;
       onReady(null);
       unlisten?.();
       void crepe.destroy();
     };
   }, [onReady]);
 
-  return <div ref={rootRef} className="milkdown-host h-full" />;
+  const handleToolbarAction = async (action: EditorAction) => {
+    const crepe = crepeRef.current;
+    if (!crepe) return;
+
+    await runMilkdownAction(
+      crepe,
+      action,
+      frontmatterRef,
+      onChangeRef.current,
+      setLinkPopupState,
+    );
+    crepe.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      view.focus();
+      const nextEditorState = buildEditorState(view);
+      setToolbarState(
+        buildSelectionToolbarState(view, nextEditorState, toolbarRef.current),
+      );
+    });
+  };
+
+  const refreshToolbarPosition = () => {
+    if (!viewRef.current) return;
+    const nextEditorState = buildEditorState(viewRef.current);
+    setToolbarState(
+      buildSelectionToolbarState(
+        viewRef.current,
+        nextEditorState,
+        toolbarRef.current,
+      ),
+    );
+  };
+
+  const closeLinkPopup = () => {
+    setLinkPopupState({
+      style: {},
+      value: null,
+    });
+    viewRef.current?.focus();
+  };
+
+  const submitLinkPopup = () => {
+    const view = viewRef.current;
+    const value = linkPopupState.value;
+    if (!view || !value) return;
+
+    const href = value.href.trim();
+    if (!href) return;
+
+    applyLink(view, {
+      ...value,
+      href,
+      name: value.name.trim(),
+    });
+    closeLinkPopup();
+  };
+
+  useEffect(() => {
+    const handleViewportChange = () => {
+      if (!viewRef.current) return;
+      refreshToolbarPosition();
+      setLinkPopupState((current) => {
+        if (!current.value) return current;
+        return {
+          ...current,
+          style: buildLinkPopupStyle(
+            viewRef.current!,
+            current.value.from,
+            current.value.to,
+            current.value.showName,
+            linkPopupRef.current,
+          ),
+        };
+      });
+    };
+
+    window.addEventListener("resize", handleViewportChange);
+    document.addEventListener("scroll", handleViewportChange, true);
+    return () => {
+      window.removeEventListener("resize", handleViewportChange);
+      document.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!linkPopupState.value) return;
+
+    const target = linkPopupState.value.showName
+      ? linkNameInputRef.current
+      : linkHrefInputRef.current;
+    target?.focus();
+    target?.select();
+  }, [linkPopupState.value]);
+
+  useEffect(() => {
+    if (!linkPopupState.value) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (linkPopupRef.current?.contains(target)) return;
+      closeLinkPopup();
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeLinkPopup();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [linkPopupState.value]);
+
+  return (
+    <>
+      <div ref={rootRef} className="milkdown-host h-full" />
+      <SelectionToolbar
+        editorState={toolbarState.editorState}
+        style={toolbarState.style}
+        toolbarRef={toolbarRef}
+        visible={toolbarState.visible && !linkPopupState.value}
+        onAction={handleToolbarAction}
+        onRefreshPosition={refreshToolbarPosition}
+      />
+      <LinkPopup
+        popupRef={linkPopupRef}
+        hrefInputRef={linkHrefInputRef}
+        nameInputRef={linkNameInputRef}
+        style={linkPopupState.style}
+        value={linkPopupState.value}
+        onChange={(patch) => {
+          setLinkPopupState((current) =>
+            current.value
+              ? {
+                  ...current,
+                  value: {
+                    ...current.value,
+                    ...patch,
+                  },
+                }
+              : current,
+          );
+        }}
+        onSubmit={submitLinkPopup}
+      />
+    </>
+  );
 }
 
 async function runMilkdownAction(
@@ -195,6 +411,12 @@ async function runMilkdownAction(
   action: EditorAction,
   frontmatterRef: MutableRefObject<string>,
   onChange: (markdown: string) => void,
+  setLinkPopupState: Dispatch<
+    SetStateAction<{
+      style: CSSProperties;
+      value: LinkPopupValue | null;
+    }>
+  >,
 ) {
   switch (action.action) {
     case "undo":
@@ -214,6 +436,12 @@ async function runMilkdownAction(
       return;
     case "strikethrough":
       crepe.editor.action(callCommand(toggleStrikethroughCommand.key));
+      return;
+    case "latex":
+      crepe.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        toggleInlineLatex(view);
+      });
       return;
     case "code":
       crepe.editor.action(callCommand(toggleInlineCodeCommand.key));
@@ -306,16 +534,19 @@ async function runMilkdownAction(
       });
       return;
     case "createLink": {
-      const href = promptForLink(crepe);
-      if (!href) return;
       crepe.editor.action((ctx) => {
         const view = ctx.get(editorViewCtx);
-        const payload = { href };
-        if (findActiveLink(view.state)) {
-          ctx.get(commandsCtx).call(updateLinkCommand.key, payload);
-        } else {
-          ctx.get(commandsCtx).call(toggleLinkCommand.key, payload);
-        }
+        const value = getLinkPopupValue(view.state);
+        setLinkPopupState({
+          style: buildLinkPopupStyle(
+            view,
+            value.from,
+            value.to,
+            value.showName,
+            null,
+          ),
+          value,
+        });
       });
       return;
     }
@@ -432,44 +663,6 @@ function liftSelectionOutOfBlockquote(
   return true;
 }
 
-function findActiveLink(state: EditorState): {
-  href?: string;
-  title?: string;
-} | null {
-  const mark = state.schema.marks.link;
-  if (!mark) return null;
-
-  const { empty, from, to, $from } = state.selection;
-  if (empty) {
-    const active = mark.isInSet(state.storedMarks ?? $from.marks());
-    return active ? active.attrs : null;
-  }
-
-  let linkAttrs: { href?: string; title?: string } | null = null;
-  state.doc.nodesBetween(from, to, (node) => {
-    const active = mark.isInSet(node.marks);
-    if (!active) return;
-    linkAttrs = active.attrs;
-    return false;
-  });
-  return linkAttrs;
-}
-
-function promptForLink(crepe: Crepe): string | undefined {
-  let currentHref = "";
-
-  crepe.editor.action((ctx) => {
-    currentHref =
-      findActiveLink(ctx.get(editorViewCtx).state)?.href?.trim() ?? "";
-  });
-
-  const href = window.prompt("Link URL", currentHref);
-  if (href == null) return undefined;
-
-  const trimmed = href.trim();
-  return trimmed || undefined;
-}
-
 function buildEditorState(view: EditorView): EditorStateSnapshot {
   const state = view.state;
   const { blockType, listType } = getBlockState(state);
@@ -480,10 +673,61 @@ function buildEditorState(view: EditorView): EditorStateSnapshot {
     bold: isMarkActive(state, "strong"),
     italic: isMarkActive(state, "emphasis"),
     strikethrough: isMarkActive(state, "strike_through"),
+    latex: isInlineLatexActive(state),
     code: isMarkActive(state, "inline_code"),
     blockType,
     listType,
     focused: view.hasFocus(),
+  };
+}
+
+function buildSelectionToolbarState(
+  view: EditorView,
+  editorState: EditorStateSnapshot,
+  toolbarElement: HTMLDivElement | null,
+): {
+  editorState: EditorStateSnapshot;
+  style: CSSProperties;
+  visible: boolean;
+} {
+  const selection = view.state.selection;
+  const toolbarHasFocus =
+    toolbarElement?.contains(document.activeElement) ?? false;
+  const isTextSelection = selection instanceof TextSelection;
+  const hasSelectedText =
+    isTextSelection && !selection.empty && view.state.doc.textBetween(selection.from, selection.to).length > 0;
+
+  if (!isTextSelection || !hasSelectedText || (!view.hasFocus() && !toolbarHasFocus)) {
+    return {
+      editorState,
+      style: {},
+      visible: false,
+    };
+  }
+
+  const start = view.coordsAtPos(selection.from);
+  const end = view.coordsAtPos(selection.to);
+  const center = (start.left + end.right) / 2;
+  const popupWidth = toolbarElement?.offsetWidth ?? 360;
+  const popupHeight = (toolbarElement?.offsetHeight ?? 36) + 8;
+  const topSafeArea = 52;
+  const maxLeft = Math.max(8, window.innerWidth - popupWidth - 8);
+  const left = Math.min(
+    Math.max(center - popupWidth / 2, 8),
+    maxLeft,
+  );
+  const preferredTop = Math.min(start.top, end.top) - popupHeight;
+  const fallbackTop = Math.max(start.bottom, end.bottom) + 12;
+  const maxTop = Math.max(topSafeArea, window.innerHeight - popupHeight - 8);
+  const top =
+    preferredTop >= topSafeArea
+      ? preferredTop
+      : Math.min(fallbackTop, maxTop);
+
+  return {
+    editorState,
+    style: { left, top },
+    visible: true,
   };
 }
 
@@ -537,6 +781,171 @@ function isMarkActive(state: EditorState, markName: string): boolean {
   }
 
   return state.doc.rangeHasMark(from, to, mark);
+}
+
+function getLinkPopupValue(state: EditorState): LinkPopupValue {
+  const link = findLinkRange(state);
+  if (link) {
+    return {
+      from: link.from,
+      to: link.to,
+      href: link.href,
+      name: "",
+      showName: false,
+    };
+  }
+
+  const { selection, doc } = state;
+  const hasSelectedText =
+    selection instanceof TextSelection &&
+    !selection.empty &&
+    doc.textBetween(selection.from, selection.to).length > 0;
+
+  return {
+    from: selection.from,
+    to: selection.to,
+    href: "",
+    name: "",
+    showName: !hasSelectedText,
+  };
+}
+
+function buildLinkPopupStyle(
+  view: EditorView,
+  from: number,
+  to: number,
+  showName: boolean,
+  popupElement: HTMLFormElement | null,
+): CSSProperties {
+  const start = view.coordsAtPos(from);
+  const end = view.coordsAtPos(to);
+  const center = (start.left + end.right) / 2;
+  const popupWidth = popupElement?.offsetWidth ?? 360;
+  const maxLeft = Math.max(8, window.innerWidth - popupWidth - 8);
+  const left = Math.min(Math.max(center - popupWidth / 2, 8), maxLeft);
+  const popupHeight = showName ? 132 : 84;
+  const preferredTop = Math.min(start.top, end.top) - popupHeight;
+  const fallbackTop = Math.max(start.bottom, end.bottom) + 12;
+  const top =
+    preferredTop >= 8
+      ? preferredTop
+      : Math.min(fallbackTop, Math.max(8, window.innerHeight - popupHeight - 8));
+
+  return {
+    left,
+    top,
+  };
+}
+
+function findLinkRange(state: EditorState): {
+  from: number;
+  to: number;
+  href: string;
+} | null {
+  const markType = state.schema.marks.link;
+  if (!markType) return null;
+
+  const { selection, doc } = state;
+  const scanFrom = Math.max(0, selection.from - (selection.empty ? 1 : 0));
+  const scanTo = Math.min(doc.content.size, selection.to + 1);
+  let start = -1;
+  let end = -1;
+  let href = "";
+
+  doc.nodesBetween(scanFrom, scanTo, (node, pos) => {
+    if (!node.isText) return;
+
+    const mark = markType.isInSet(node.marks);
+    if (!mark) return;
+
+    const nodeEnd = pos + node.nodeSize;
+    const intersects = selection.empty
+      ? selection.from >= pos && selection.from <= nodeEnd
+      : selection.to > pos && selection.from < nodeEnd;
+
+    if (!intersects) return;
+
+    if (start === -1 || pos < start) start = pos;
+    if (nodeEnd > end) end = nodeEnd;
+    href = String(mark.attrs.href ?? "");
+  });
+
+  if (start === -1 || end === -1) return null;
+
+  return { from: start, to: end, href };
+}
+
+function applyLink(
+  view: EditorView,
+  value: LinkPopupValue,
+): boolean {
+  const { state } = view;
+  const type = state.schema.marks.link;
+  if (!type) return false;
+
+  const tr = state.tr;
+
+  if (value.showName) {
+    const label = value.name || value.href;
+    const textNode = state.schema.text(label, [type.create({ href: value.href })]);
+    const next = tr.replaceRangeWith(value.from, value.to, textNode);
+    view.dispatch(
+      next.setSelection(
+        TextSelection.create(next.doc, value.from + label.length),
+      ).scrollIntoView(),
+    );
+    return true;
+  }
+
+  const next = tr
+    .removeMark(value.from, value.to, type)
+    .addMark(value.from, value.to, type.create({ href: value.href }));
+  view.dispatch(
+    next.setSelection(TextSelection.create(next.doc, value.from, value.to)).scrollIntoView(),
+  );
+  return true;
+}
+
+function isInlineLatexActive(state: EditorState): boolean {
+  const inlineMath = state.schema.nodes.math_inline;
+  if (!inlineMath) return false;
+
+  return findNodeInSelection(state, inlineMath).hasNode;
+}
+
+function toggleInlineLatex(view: EditorView): boolean {
+  const { state } = view;
+  const inlineMath = state.schema.nodes.math_inline;
+  if (!inlineMath) return false;
+
+  const { hasNode, pos, target } = findNodeInSelection(state, inlineMath);
+  const { selection, doc, tr } = state;
+
+  if (!hasNode) {
+    const text = doc.textBetween(selection.from, selection.to);
+    const next = tr.replaceSelectionWith(
+      inlineMath.create({
+        value: text,
+      }),
+    );
+    view.dispatch(
+      next.setSelection(NodeSelection.create(next.doc, selection.from)),
+    );
+    return true;
+  }
+
+  const { from, to } = selection;
+  if (!target || pos < 0) return false;
+
+  let next = tr.delete(pos, pos + 1);
+  const content = String(target.attrs.value ?? "");
+  next = next.insertText(content, pos);
+  view.dispatch(
+    next.setSelection(
+      TextSelection.create(next.doc, from, to + content.length - 1),
+    ),
+  );
+  return true;
 }
 
 async function promptForImage(): Promise<
