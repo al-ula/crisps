@@ -214,20 +214,6 @@ body {
     @apply text-sm italic text-center text-base-content;
 }
 
-/* MDXEditor structural overrides */
-.editor-container .mdxeditor {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--basePageBg);
-}
-
-.editor-container .mdxeditor-root-contenteditable {
-    flex: 1;
-    overflow: auto;
-    background: transparent;
-}
-
 .editor-container .milkdown-host {
     height: auto;
     min-height: 100%;
@@ -311,92 +297,6 @@ body {
     .editor-container .milkdown .ProseMirror {
         padding: 3rem 1.25rem 3rem 4.75rem;
     }
-}
-
-/* Map MDXEditor theme variables to Catppuccin Latte (light) */
-.mdxeditor,
-.mdxeditor-popup-container {
-    --basePageBg: #eff1f5;
-    --baseBase: #eff1f5;
-    --baseBgSubtle: #e6e9ef;
-    --baseBg: #e6e9ef;
-    --baseBgHover: #dce0e8;
-    --baseBgActive: #ccd0da;
-    --baseLine: #bcc0cc;
-    --baseBorder: #acb0be;
-    --baseBorderHover: #9ca0b0;
-    --baseSolid: #8c8fa1;
-    --baseSolidHover: #7c7f93;
-    --baseText: #4c4f69;
-    --baseTextContrast: #4c4f69;
-    --accentBase: #f0f9ff;
-    --accentBgSubtle: #d0edff;
-    --accentBg: #c9f0ff;
-    --accentBgHover: #a8e7ff;
-    --accentBgActive: #85daff;
-    --accentLine: #7dd3f8;
-    --accentBorder: #04a5e5;
-    --accentBorderHover: #0395cf;
-    --accentSolid: #04a5e5;
-    --accentSolidHover: #0395cf;
-    --accentText: #0395cf;
-    --accentTextContrast: #104fa0;
-    --error-color: #d20f39;
-    --font-body: "Source Code Pro", system-ui, sans-serif;
-    --font-mono: "Source Code Pro", ui-monospace, monospace;
-    --admonitionTipBg: #d5f4ff;
-    --admonitionTipBorder: #04a5e5;
-    --admonitionInfoBg: #d5f0d5;
-    --admonitionInfoBorder: #40a02b;
-    --admonitionCautionBg: #fdf0ce;
-    --admonitionCautionBorder: #df8e1d;
-    --admonitionDangerBg: #ffd5d8;
-    --admonitionDangerBorder: #d20f39;
-    --admonitionNoteBg: #e6e9ef;
-    --admonitionNoteBorder: #acb0be;
-}
-
-/* Map MDXEditor theme variables to Catppuccin Mocha (dark) */
-.dark-theme .mdxeditor,
-.dark-theme .mdxeditor-popup-container {
-    --basePageBg: #1e1e2e;
-    --baseBase: #1e1e2e;
-    --baseBgSubtle: #181825;
-    --baseBg: #181825;
-    --baseBgHover: #313244;
-    --baseBgActive: #45475a;
-    --baseLine: #45475a;
-    --baseBorder: #585b70;
-    --baseBorderHover: #6c6f85;
-    --baseSolid: #6c6f85;
-    --baseSolidHover: #7f849c;
-    --baseText: #cdd6f4;
-    --baseTextContrast: #cdd6f4;
-    --accentBase: #001824;
-    --accentBgSubtle: #002a3d;
-    --accentBg: #003a54;
-    --accentBgHover: #004a68;
-    --accentBgActive: #005a7c;
-    --accentLine: #4cbccb;
-    --accentBorder: #89dceb;
-    --accentBorderHover: #7acfde;
-    --accentSolid: #89dceb;
-    --accentSolidHover: #7acfde;
-    --accentText: #89dceb;
-    --accentTextContrast: #cff5fb;
-    --error-color: #f38ba8;
-    --font-body: "Source Code Pro", system-ui, sans-serif;
-    --font-mono: "Source Code Pro", ui-monospace, monospace;
-    --admonitionTipBg: #002a3d;
-    --admonitionTipBorder: #89dceb;
-    --admonitionInfoBg: #002a18;
-    --admonitionInfoBorder: #a6e3a1;
-    --admonitionCautionBg: #2c2008;
-    --admonitionCautionBorder: #f9e2af;
-    --admonitionDangerBg: #2c0a10;
-    --admonitionDangerBorder: #f38ba8;
-    --admonitionNoteBg: #313244;
-    --admonitionNoteBorder: #585b70;
 }
 
 /* CodeMirror code block theme — Catppuccin Latte (light) */

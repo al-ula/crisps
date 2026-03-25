@@ -2,33 +2,29 @@
 
 ## Goal
 
-Migrate the editor from `@mdxeditor/editor` to Milkdown without regressing file handling, source mode, menu actions, or the current custom editor UX.
+Finish the Milkdown migration without regressing file handling, source mode, menu actions, or the current custom editor UX.
 
 ## Current State
 
-- `src/components/EditorHost.tsx` now defaults to `MilkdownEditor`, with `MdxEditor` still available behind `VITE_EDITOR_ENGINE=mdx`.
+- `src/components/EditorHost.tsx` now mounts only `MilkdownEditor`.
 - File state and save logic in `src/context/FileContext.tsx` now depend on `EditorAdapter`, not `MDXEditorMethods`.
 - Menu and Tauri actions are still bridged through `src/components/FloatingBar.tsx`, `src/editor/tauriBridge.ts`, and `src-tauri/src/lib.rs`.
 - The Milkdown path exists in `src/components/MilkdownEditor.tsx` with markdown sync, state snapshots, and action handling.
-- The old MDXEditor/Lexical overlays remain for fallback and still drive:
-  - `src/components/MdxEditor.tsx`
-  - `src/plugins/blockHandlePlugin.tsx`
-  - `src/plugins/selectionFormatPlugin.tsx`
-- Styling now includes both MDXEditor-specific selectors and Milkdown overrides in `src/App.css`.
+- The MDXEditor/Lexical fallback has been removed, so the remaining work is Milkdown parity, styling cleanup, and regression coverage.
+- Styling still includes legacy selectors that were written for the old migration stages in `src/App.css`.
 
 ## Migration Strategy
 
 Use a staged swap, not a one-shot rewrite.
 
 - Keep the existing app shell, Tauri commands, and file workflow.
-- The editor adapter and feature-flagged host already exist, so the remaining work is parity and cutover.
-- Keep Milkdown available behind the flag until command wiring, source mode, and markdown roundtrips are stable.
+- The editor adapter and single-editor host already exist, so the remaining work is parity and cleanup.
 - Rebuild the custom overlays against Milkdown and ProseMirror only after the core editor flow is working.
-- Remove MDXEditor and Lexical only after parity is acceptable.
+- Finish removing legacy migration scaffolding as parity lands.
 
 ## Progress Snapshot
 
-- Done: PR 1, PR 2, PR 3.
+- Done: PR 1, PR 2, PR 3, MDX fallback removal.
 - In progress: PR 4, PR 5, PR 8.
 - Pending: PR 6, PR 7, PR 9, PR 10.
 
@@ -90,7 +86,6 @@ Acceptance:
   - redo
   - bold
   - italic
-  - underline
   - strikethrough
   - inline code
   - headings
@@ -211,8 +206,8 @@ Acceptance:
 ## Main Risks
 
 - `frontmatter` is currently first-class in the editor and may need custom Milkdown work.
-- The custom overlays currently depend on Lexical behavior and will need full rewrites.
-- A meaningful part of the current visual presentation comes from MDXEditor-specific CSS and CodeMirror-specific styling.
+- The custom overlays still need Milkdown-native rewrites to replace the removed Lexical implementations.
+- A meaningful part of the current visual presentation still comes from migration-era CSS and CodeMirror-specific styling.
 
 ## Definition of Done
 

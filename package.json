@@ -5,36 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm dev",
-    "dev:mdx": "VITE_EDITOR_ENGINE=mdx pnpm dev",
     "build": "tsc && vite build",
-    "build:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm build",
-    "build:mdx": "VITE_EDITOR_ENGINE=mdx pnpm build",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "tauri:dev:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm tauri dev",
-    "tauri:dev:mdx": "VITE_EDITOR_ENGINE=mdx pnpm tauri dev",
-    "tauri:build:milkdown": "VITE_EDITOR_ENGINE=milkdown pnpm tauri build",
-    "tauri:build:mdx": "VITE_EDITOR_ENGINE=mdx pnpm tauri build"
+    "tauri": "tauri"
   },
   "dependencies": {
-    "@lexical/rich-text": "0.35.0",
-    "@mdxeditor/editor": "^3.52.5",
     "@milkdown/crepe": "7.19.0",
     "@milkdown/kit": "7.19.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2",
     "daisyui": "^5.5.19",
-    "lexical": "0.35.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "lexical": "0.35.0",
-      "@lexical/rich-text": "0.35.0"
-    }
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",
