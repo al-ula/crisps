@@ -8,7 +8,6 @@ import {
   blockquoteSchema,
   bulletListSchema,
   createCodeBlockCommand,
-  headingSchema,
   insertHrCommand,
   insertImageCommand,
   liftFirstListItemCommand,
@@ -21,14 +20,20 @@ import {
   toggleInlineCodeCommand,
   toggleLinkCommand,
   toggleStrongCommand,
-  wrapInBlockTypeCommand,
+  updateLinkCommand,
+  wrapInBlockquoteCommand,
+  wrapInBulletListCommand,
+  wrapInHeadingCommand,
+  wrapInOrderedListCommand,
 } from "@milkdown/kit/preset/commonmark";
 import {
+  createTable,
   insertTableCommand,
   toggleStrikethroughCommand,
 } from "@milkdown/kit/preset/gfm";
 import { undoDepth, redoDepth } from "@milkdown/kit/prose/history";
 import type { EditorState } from "@milkdown/kit/prose/state";
+import { liftTarget } from "@milkdown/kit/prose/transform";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { callCommand, replaceAll } from "@milkdown/kit/utils";
 import { joinFrontmatter, splitFrontmatter } from "../editor/frontmatter";
@@ -208,26 +213,46 @@ async function runMilkdownAction(
     case "bulletList":
       crepe.editor.action((ctx) => {
         const commands = ctx.get(commandsCtx);
-        commands.call(wrapInBlockTypeCommand.key, {
-          nodeType: bulletListSchema.type(ctx),
-        });
+        const view = ctx.get(editorViewCtx);
+        if (!convertSelectedList(view, { kind: "bullet" }, ctx)) {
+          commands.call(wrapInBulletListCommand.key);
+        }
       });
       return;
     case "orderedList":
       crepe.editor.action((ctx) => {
         const commands = ctx.get(commandsCtx);
-        commands.call(wrapInBlockTypeCommand.key, {
-          nodeType: orderedListSchema.type(ctx),
-        });
+        const view = ctx.get(editorViewCtx);
+        if (!convertSelectedList(view, { kind: "ordered" }, ctx)) {
+          commands.call(wrapInOrderedListCommand.key);
+        }
       });
       return;
     case "checklist":
       crepe.editor.action((ctx) => {
         const commands = ctx.get(commandsCtx);
-        commands.call(wrapInBlockTypeCommand.key, {
-          nodeType: listItemSchema.type(ctx),
-          attrs: { checked: false },
-        });
+        const view = ctx.get(editorViewCtx);
+
+        if (
+          !convertSelectedList(
+            view,
+            {
+              kind: "check",
+              checked: false,
+            },
+            ctx,
+          )
+        ) {
+          commands.call(wrapInBulletListCommand.key);
+          convertSelectedList(
+            ctx.get(editorViewCtx),
+            {
+              kind: "check",
+              checked: false,
+            },
+            ctx,
+          );
+        }
       });
       return;
     case "removeList":
@@ -244,16 +269,18 @@ async function runMilkdownAction(
     case "blockType":
       crepe.editor.action((ctx) => {
         const commands = ctx.get(commandsCtx);
+        const view = ctx.get(editorViewCtx);
         switch (action.blockType) {
           case "paragraph":
+            liftSelectionOutOfBlockquote(view, ctx);
             commands.call(setBlockTypeCommand.key, {
               nodeType: paragraphSchema.type(ctx),
             });
             break;
           case "quote":
-            commands.call(wrapInBlockTypeCommand.key, {
-              nodeType: blockquoteSchema.type(ctx),
-            });
+            if (getBlockState(view.state).blockType !== "quote") {
+              commands.call(wrapInBlockquoteCommand.key);
+            }
             break;
           case "h1":
           case "h2":
@@ -261,18 +288,27 @@ async function runMilkdownAction(
           case "h4":
           case "h5":
           case "h6":
-            commands.call(setBlockTypeCommand.key, {
-              nodeType: headingSchema.type(ctx),
-              attrs: { level: Number(action.blockType.slice(1)) },
-            });
+            liftSelectionOutOfBlockquote(view, ctx);
+            commands.call(
+              wrapInHeadingCommand.key,
+              Number(action.blockType.slice(1)),
+            );
             break;
         }
       });
       return;
     case "createLink": {
-      const href = window.prompt("Link URL");
+      const href = promptForLink(crepe);
       if (!href) return;
-      crepe.editor.action(callCommand(toggleLinkCommand.key, { href }));
+      crepe.editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const payload = { href };
+        if (findActiveLink(view.state)) {
+          ctx.get(commandsCtx).call(updateLinkCommand.key, payload);
+        } else {
+          ctx.get(commandsCtx).call(toggleLinkCommand.key, payload);
+        }
+      });
       return;
     }
     case "insertImage": {
@@ -282,12 +318,21 @@ async function runMilkdownAction(
       return;
     }
     case "insertTable":
-      crepe.editor.action(
-        callCommand(insertTableCommand.key, {
-          row: action.rows ?? 3,
-          col: action.columns ?? 3,
-        }),
-      );
+      crepe.editor.action((ctx) => {
+        const commands = ctx.get(commandsCtx);
+        const view = ctx.get(editorViewCtx);
+        if (
+          !commands.call(insertTableCommand.key, {
+            row: action.rows ?? 3,
+            col: action.columns ?? 3,
+          })
+        ) {
+          const table = createTable(ctx, action.rows ?? 3, action.columns ?? 3);
+          view.dispatch(
+            view.state.tr.replaceSelectionWith(table).scrollIntoView(),
+          );
+        }
+      });
       return;
     case "insertThematicBreak":
       crepe.editor.action(callCommand(insertHrCommand.key));
@@ -305,6 +350,114 @@ async function runMilkdownAction(
       return;
     }
   }
+}
+
+function convertSelectedList(
+  view: EditorView,
+  options: {
+    kind: "bullet" | "ordered" | "check";
+    checked?: boolean | null;
+  },
+  ctx: Parameters<typeof bulletListSchema.type>[0],
+): boolean {
+  const { state } = view;
+  const { from, to } = state.selection;
+  const bulletList = bulletListSchema.type(ctx);
+  const orderedList = orderedListSchema.type(ctx);
+  const listItem = listItemSchema.type(ctx);
+  let tr = state.tr;
+  let changed = false;
+
+  state.doc.nodesBetween(from, to, (node, pos) => {
+    if (node.type === bulletList || node.type === orderedList) {
+      const nextType = options.kind === "ordered" ? orderedList : bulletList;
+      if (node.type !== nextType) {
+        const nextAttrs =
+          nextType === orderedList
+            ? {
+                order:
+                  typeof node.attrs.order === "number" ? node.attrs.order : 1,
+                spread: Boolean(node.attrs.spread),
+              }
+            : {
+                spread: Boolean(node.attrs.spread),
+              };
+        tr = tr.setNodeMarkup(pos, nextType, nextAttrs);
+        changed = true;
+      }
+      return;
+    }
+
+    if (node.type !== listItem) return;
+
+    const nextChecked =
+      options.kind === "check" ? (options.checked ?? false) : null;
+    if (node.attrs.checked !== nextChecked) {
+      tr = tr.setNodeMarkup(pos, undefined, {
+        ...node.attrs,
+        checked: nextChecked,
+      });
+      changed = true;
+    }
+  });
+
+  if (!changed) return false;
+  view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
+function liftSelectionOutOfBlockquote(
+  view: EditorView,
+  ctx: Parameters<typeof blockquoteSchema.type>[0],
+): boolean {
+  const { state } = view;
+  const { $from, $to } = state.selection;
+  const blockquote = blockquoteSchema.type(ctx);
+  const range = $from.blockRange($to, (node) => node.type === blockquote);
+  const target = range ? liftTarget(range) : null;
+
+  if (range == null || target == null) return false;
+
+  view.dispatch(state.tr.lift(range, target).scrollIntoView());
+  return true;
+}
+
+function findActiveLink(state: EditorState): {
+  href?: string;
+  title?: string;
+} | null {
+  const mark = state.schema.marks.link;
+  if (!mark) return null;
+
+  const { empty, from, to, $from } = state.selection;
+  if (empty) {
+    const active = mark.isInSet(state.storedMarks ?? $from.marks());
+    return active ? active.attrs : null;
+  }
+
+  let linkAttrs: { href?: string; title?: string } | null = null;
+  state.doc.nodesBetween(from, to, (node) => {
+    const active = mark.isInSet(node.marks);
+    if (!active) return;
+    linkAttrs = active.attrs;
+    return false;
+  });
+  return linkAttrs;
+}
+
+function promptForLink(crepe: Crepe): string | undefined {
+  let currentHref = "";
+
+  crepe.editor.action((ctx) => {
+    currentHref =
+      findActiveLink(ctx.get(editorViewCtx).state)?.href?.trim() ?? "";
+  });
+
+  const href = window.prompt("Link URL", currentHref);
+  if (href == null) return undefined;
+
+  const trimmed = href.trim();
+  return trimmed || undefined;
 }
 
 function buildEditorState(view: EditorView): EditorStateSnapshot {
