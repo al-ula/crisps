@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Crepe } from "@milkdown/crepe";
 import "@milkdown/crepe/theme/common/style.css";
 import "@milkdown/crepe/theme/frame.css";
 import { commandsCtx, editorViewCtx } from "@milkdown/kit/core";
@@ -42,12 +41,13 @@ import { NodeSelection, TextSelection, type EditorState } from "@milkdown/kit/pr
 import { findNodeInSelection } from "@milkdown/kit/prose";
 import { liftTarget } from "@milkdown/kit/prose/transform";
 import type { EditorView } from "@milkdown/kit/prose/view";
-import { callCommand, replaceAll } from "@milkdown/kit/utils";
+import { callCommand } from "@milkdown/kit/utils";
 import {
   CODE_BLOCK_CODEMIRROR_LANGUAGES,
   DEFAULT_CODE_BLOCK_LANGUAGE,
   renderCodeBlockLanguage,
 } from "../editor/codeBlockLanguages";
+import { createMilkdownRuntime } from "../editor/milkdownRuntime";
 import { joinFrontmatter, splitFrontmatter } from "../editor/frontmatter";
 import {
   createTauriEditorAdapter,
@@ -62,6 +62,7 @@ import type {
   EditorAdapter,
   EditorStateSnapshot,
 } from "../editor/types";
+import type { ActiveBlock } from "../editor/blockEdit";
 
 interface MilkdownEditorProps {
   onChange: (markdown: string) => void;
@@ -80,7 +81,8 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
   const suppressNextMarkdownUpdateRef = useRef(false);
   const suppressMarkdownTimerRef = useRef<number | null>(null);
   const toolbarRefreshFrameRef = useRef<number | null>(null);
-  const crepeRef = useRef<Crepe | null>(null);
+  const runtimeRef = useRef<ReturnType<typeof createMilkdownRuntime> | null>(null);
+  const activeBlockRef = useRef<ActiveBlock | null>(null);
   const [toolbarState, setToolbarState] = useState<{
     editorState: EditorStateSnapshot;
     style: CSSProperties;
@@ -118,26 +120,6 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       }, 500);
     };
 
-    const crepe = new Crepe({
-      root: rootRef.current,
-      defaultValue: "",
-      features: {
-        [Crepe.Feature.Toolbar]: false,
-      },
-      featureConfigs: {
-        [Crepe.Feature.CodeMirror]: {
-          languages: CODE_BLOCK_CODEMIRROR_LANGUAGES,
-          renderLanguage: renderCodeBlockLanguage,
-        },
-        [Crepe.Feature.ImageBlock]: {
-          onUpload: readFileAsDataUrl,
-          blockOnUpload: readFileAsDataUrl,
-          inlineOnUpload: readFileAsDataUrl,
-        },
-      },
-    });
-    crepeRef.current = crepe;
-
     const refreshToolbarState = (view: EditorView) => {
       const nextEditorState = buildEditorState(view);
       setToolbarState(buildSelectionToolbarState(view, nextEditorState, toolbarRef.current));
@@ -158,60 +140,67 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 
     const emitSnapshot = (view: EditorView) => {
       const nextEditorState = buildEditorState(view);
+      activeBlockRef.current = runtime.blockEdit.getActiveBlock();
       void emitEditorState(nextEditorState);
       scheduleToolbarRefresh(view);
     };
 
-    crepe.on((listener) => {
-      listener.mounted((ctx) => {
-        emitSnapshot(ctx.get(editorViewCtx));
-      });
-      listener.focus((ctx) => {
-        emitSnapshot(ctx.get(editorViewCtx));
-      });
-      listener.blur((ctx) => {
-        emitSnapshot(ctx.get(editorViewCtx));
-      });
-      listener.selectionUpdated((ctx) => {
-        emitSnapshot(ctx.get(editorViewCtx));
-      });
-      listener.updated((ctx) => {
-        emitSnapshot(ctx.get(editorViewCtx));
-      });
-      listener.markdownUpdated((ctx, markdown) => {
-        emitSnapshot(ctx.get(editorViewCtx));
-        if (suppressNextMarkdownUpdateRef.current) {
-          suppressNextMarkdownUpdateRef.current = false;
-          if (suppressMarkdownTimerRef.current != null) {
-            window.clearTimeout(suppressMarkdownTimerRef.current);
-            suppressMarkdownTimerRef.current = null;
+    const runtime = createMilkdownRuntime({
+      root: rootRef.current,
+      defaultValue: "",
+      languages: CODE_BLOCK_CODEMIRROR_LANGUAGES,
+      renderLanguage: renderCodeBlockLanguage,
+      onUpload: readFileAsDataUrl,
+      configureListeners: (listener) => {
+        listener.mounted((ctx) => {
+          emitSnapshot(ctx.get(editorViewCtx));
+        });
+        listener.focus((ctx) => {
+          emitSnapshot(ctx.get(editorViewCtx));
+        });
+        listener.blur((ctx) => {
+          emitSnapshot(ctx.get(editorViewCtx));
+        });
+        listener.selectionUpdated((ctx) => {
+          emitSnapshot(ctx.get(editorViewCtx));
+        });
+        listener.updated((ctx) => {
+          emitSnapshot(ctx.get(editorViewCtx));
+        });
+        listener.markdownUpdated((ctx, markdown) => {
+          emitSnapshot(ctx.get(editorViewCtx));
+          if (suppressNextMarkdownUpdateRef.current) {
+            suppressNextMarkdownUpdateRef.current = false;
+            if (suppressMarkdownTimerRef.current != null) {
+              window.clearTimeout(suppressMarkdownTimerRef.current);
+              suppressMarkdownTimerRef.current = null;
+            }
+            return;
           }
-          return;
-        }
 
-        onChangeRef.current(joinFrontmatter(frontmatterRef.current, markdown));
-      });
+          onChangeRef.current(joinFrontmatter(frontmatterRef.current, markdown));
+        });
+      },
     });
+    runtimeRef.current = runtime;
 
     const setMarkdown = (markdown: string) => {
       const parts = splitFrontmatter(markdown);
       frontmatterRef.current = parts.frontmatter;
       beginSilentMarkdownSync();
-      crepe.editor.action(replaceAll(parts.body, true));
+      runtime.replaceMarkdown(parts.body);
     };
 
     const getMarkdown = () =>
-      joinFrontmatter(frontmatterRef.current, crepe.getMarkdown());
+      joinFrontmatter(frontmatterRef.current, runtime.getMarkdown());
 
     const focus = () => {
-      crepe.editor.action((ctx) => {
-        ctx.get(editorViewCtx).focus();
-      });
+      runtime.focus();
     };
 
-    void crepe.create().then(async () => {
+    void runtime.create().then(async () => {
       if (disposed) {
-        await crepe.destroy();
+        await runtime.destroy();
         return;
       }
 
@@ -225,13 +214,13 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 
       unlisten = await listenForEditorActions(async (action) => {
         await runMilkdownAction(
-          crepe,
+          runtime,
           action,
           frontmatterRef,
           onChangeRef.current,
           setLinkPopupState,
         );
-        crepe.editor.action((ctx) => {
+        runtime.action((ctx) => {
           scheduleToolbarRefresh(ctx.get(editorViewCtx));
         });
       });
@@ -245,26 +234,27 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       if (toolbarRefreshFrameRef.current != null) {
         window.cancelAnimationFrame(toolbarRefreshFrameRef.current);
       }
-      crepeRef.current = null;
+      runtimeRef.current = null;
+      activeBlockRef.current = null;
       viewRef.current = null;
       onReady(null);
       unlisten?.();
-      void crepe.destroy();
+      void runtime.destroy();
     };
   }, [onReady]);
 
   const handleToolbarAction = async (action: EditorAction) => {
-    const crepe = crepeRef.current;
-    if (!crepe) return;
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
 
     await runMilkdownAction(
-      crepe,
+      runtime,
       action,
       frontmatterRef,
       onChangeRef.current,
       setLinkPopupState,
     );
-    crepe.editor.action((ctx) => {
+    runtime.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       view.focus();
       const nextEditorState = buildEditorState(view);
@@ -372,7 +362,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 
   return (
     <>
-      <div ref={rootRef} className="milkdown-host h-full" />
+      <div ref={rootRef} className="milkdown milkdown-host h-full" />
       <SelectionToolbar
         editorState={toolbarState.editorState}
         style={toolbarState.style}
@@ -407,7 +397,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 }
 
 async function runMilkdownAction(
-  crepe: Crepe,
+  runtime: ReturnType<typeof createMilkdownRuntime>,
   action: EditorAction,
   frontmatterRef: MutableRefObject<string>,
   onChange: (markdown: string) => void,
@@ -420,34 +410,34 @@ async function runMilkdownAction(
 ) {
   switch (action.action) {
     case "undo":
-      crepe.editor.action(callCommand(undoCommand.key));
+      runtime.action(callCommand(undoCommand.key));
       return;
     case "redo":
-      crepe.editor.action(callCommand(redoCommand.key));
+      runtime.action(callCommand(redoCommand.key));
       return;
     case "bold":
-      crepe.editor.action(callCommand(toggleStrongCommand.key));
+      runtime.action(callCommand(toggleStrongCommand.key));
       return;
     case "italic":
-      crepe.editor.action(callCommand(toggleEmphasisCommand.key));
+      runtime.action(callCommand(toggleEmphasisCommand.key));
       return;
     case "subscript":
     case "superscript":
       return;
     case "strikethrough":
-      crepe.editor.action(callCommand(toggleStrikethroughCommand.key));
+      runtime.action(callCommand(toggleStrikethroughCommand.key));
       return;
     case "latex":
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const view = ctx.get(editorViewCtx);
         toggleInlineLatex(view);
       });
       return;
     case "code":
-      crepe.editor.action(callCommand(toggleInlineCodeCommand.key));
+      runtime.action(callCommand(toggleInlineCodeCommand.key));
       return;
     case "bulletList":
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const commands = ctx.get(commandsCtx);
         const view = ctx.get(editorViewCtx);
         if (!convertSelectedList(view, { kind: "bullet" }, ctx)) {
@@ -456,7 +446,7 @@ async function runMilkdownAction(
       });
       return;
     case "orderedList":
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const commands = ctx.get(commandsCtx);
         const view = ctx.get(editorViewCtx);
         if (!convertSelectedList(view, { kind: "ordered" }, ctx)) {
@@ -465,7 +455,7 @@ async function runMilkdownAction(
       });
       return;
     case "checklist":
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const commands = ctx.get(commandsCtx);
         const view = ctx.get(editorViewCtx);
 
@@ -492,7 +482,7 @@ async function runMilkdownAction(
       });
       return;
     case "removeList":
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const commands = ctx.get(commandsCtx);
         for (let i = 0; i < 8; i += 1) {
           const lifted =
@@ -503,7 +493,7 @@ async function runMilkdownAction(
       });
       return;
     case "blockType":
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const commands = ctx.get(commandsCtx);
         const view = ctx.get(editorViewCtx);
         switch (action.blockType) {
@@ -534,7 +524,7 @@ async function runMilkdownAction(
       });
       return;
     case "createLink": {
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const view = ctx.get(editorViewCtx);
         const value = getLinkPopupValue(view.state);
         setLinkPopupState({
@@ -553,11 +543,11 @@ async function runMilkdownAction(
     case "insertImage": {
       const image = await promptForImage();
       if (!image) return;
-      crepe.editor.action(callCommand(insertImageCommand.key, image));
+      runtime.action(callCommand(insertImageCommand.key, image));
       return;
     }
     case "insertTable":
-      crepe.editor.action((ctx) => {
+      runtime.action((ctx) => {
         const commands = ctx.get(commandsCtx);
         const view = ctx.get(editorViewCtx);
         if (
@@ -574,18 +564,18 @@ async function runMilkdownAction(
       });
       return;
     case "insertThematicBreak":
-      crepe.editor.action(callCommand(insertHrCommand.key));
+      runtime.action(callCommand(insertHrCommand.key));
       return;
     case "insertCodeBlock":
-      crepe.editor.action(
+      runtime.action(
         callCommand(createCodeBlockCommand.key, DEFAULT_CODE_BLOCK_LANGUAGE),
       );
       return;
     case "insertFrontmatter": {
       if (frontmatterRef.current) return;
       frontmatterRef.current = "---\n---\n\n";
-      onChange(joinFrontmatter(frontmatterRef.current, crepe.getMarkdown()));
-      crepe.editor.action((ctx) => {
+      onChange(joinFrontmatter(frontmatterRef.current, runtime.getMarkdown()));
+      runtime.action((ctx) => {
         void emitEditorState(buildEditorState(ctx.get(editorViewCtx)));
       });
       return;
