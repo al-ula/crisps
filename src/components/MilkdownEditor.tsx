@@ -52,6 +52,8 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const frontmatterRef = useRef("");
   const onChangeRef = useRef(onChange);
+  const suppressNextMarkdownUpdateRef = useRef(false);
+  const suppressMarkdownTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -62,6 +64,16 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 
     let disposed = false;
     let unlisten: (() => void) | undefined;
+    const beginSilentMarkdownSync = () => {
+      suppressNextMarkdownUpdateRef.current = true;
+      if (suppressMarkdownTimerRef.current != null) {
+        window.clearTimeout(suppressMarkdownTimerRef.current);
+      }
+      suppressMarkdownTimerRef.current = window.setTimeout(() => {
+        suppressNextMarkdownUpdateRef.current = false;
+        suppressMarkdownTimerRef.current = null;
+      }, 500);
+    };
 
     const crepe = new Crepe({
       root: rootRef.current,
@@ -97,6 +109,15 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       });
       listener.markdownUpdated((ctx, markdown) => {
         emitSnapshot(ctx.get(editorViewCtx));
+        if (suppressNextMarkdownUpdateRef.current) {
+          suppressNextMarkdownUpdateRef.current = false;
+          if (suppressMarkdownTimerRef.current != null) {
+            window.clearTimeout(suppressMarkdownTimerRef.current);
+            suppressMarkdownTimerRef.current = null;
+          }
+          return;
+        }
+
         onChangeRef.current(joinFrontmatter(frontmatterRef.current, markdown));
       });
     });
@@ -104,6 +125,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
     const setMarkdown = (markdown: string) => {
       const parts = splitFrontmatter(markdown);
       frontmatterRef.current = parts.frontmatter;
+      beginSilentMarkdownSync();
       crepe.editor.action(replaceAll(parts.body, true));
     };
 
@@ -142,6 +164,9 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 
     return () => {
       disposed = true;
+      if (suppressMarkdownTimerRef.current != null) {
+        window.clearTimeout(suppressMarkdownTimerRef.current);
+      }
       onReady(null);
       unlisten?.();
       void crepe.destroy();

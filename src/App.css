@@ -229,13 +229,14 @@ body {
 }
 
 .editor-container .milkdown-host {
-    height: 100%;
+    height: auto;
+    min-height: 100%;
     background: var(--color-base-100);
     border-radius: inherit;
 }
 
 .editor-container .milkdown {
-    height: 100%;
+    height: auto;
     min-height: 100%;
     background: var(--color-base-100);
     color: var(--color-base-content);

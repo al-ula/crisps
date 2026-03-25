@@ -131,9 +131,8 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const getCurrentContent = useCallback(() => {
-    if (sourceMode) return sourceText;
-    return editorAdapterRef.current?.getMarkdown() ?? currentContentRef.current;
-  }, [sourceMode, sourceText]);
+    return currentContentRef.current;
+  }, []);
 
   const loadDocument = useCallback(
     (content: string, path: string | null) => {
@@ -163,10 +162,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
 
   function toggleSourceMode() {
     if (!sourceMode) {
-      const content =
-        editorAdapterRef.current?.getMarkdown() ?? currentContentRef.current;
-      currentContentRef.current = content;
-      setSourceText(content);
+      setSourceText(currentContentRef.current);
       setSourceMode(true);
     } else {
       currentContentRef.current = sourceText;
