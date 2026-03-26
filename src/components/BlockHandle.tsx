@@ -4,11 +4,14 @@ import type {
   MutableRefObject,
   PointerEvent as ReactPointerEvent,
 } from "react";
+import type { BlockMenuIcon } from "../editor/blockMenuConfig";
+import { BlockIconRenderer } from "./BlockIcon";
 
 interface BlockHandleProps {
   containerRef: MutableRefObject<HTMLDivElement | null>;
   style: CSSProperties;
   visible: boolean;
+  menuIcon: BlockMenuIcon;
   onOpenMenu: () => void;
   onMenuPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onPointerEnter: () => void;
@@ -21,6 +24,7 @@ export function BlockHandle({
   containerRef,
   style,
   visible,
+  menuIcon,
   onOpenMenu,
   onMenuPointerDown,
   onPointerEnter,
@@ -50,7 +54,7 @@ export function BlockHandle({
             onOpenMenu();
           }}
         >
-          <BlockMenuIcon />
+          <BlockMenuButtonIcon icon={menuIcon} />
         </button>
         <button
           type="button"
@@ -68,22 +72,15 @@ export function BlockHandle({
   );
 }
 
-function BlockMenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-      <path
-        d="M5 5.75A1.75 1.75 0 0 1 6.75 4h10.5A1.75 1.75 0 0 1 19 5.75v3.5A1.75 1.75 0 0 1 17.25 11H6.75A1.75 1.75 0 0 1 5 9.25Zm0 9A1.75 1.75 0 0 1 6.75 13h4.5A1.75 1.75 0 0 1 13 14.75v3.5A1.75 1.75 0 0 1 11.25 20h-4.5A1.75 1.75 0 0 1 5 18.25Zm9 0A1.75 1.75 0 0 1 15.75 13h1.5A1.75 1.75 0 0 1 19 14.75v3.5A1.75 1.75 0 0 1 17.25 20h-1.5A1.75 1.75 0 0 1 14 18.25Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
+function BlockMenuButtonIcon({ icon }: { icon: BlockMenuIcon }) {
+  return <BlockIconRenderer icon={icon} />;
 }
 
 function BlockDragHandleIcon() {
   return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
       <path
-        d="M3.5 9.83366C3.35833 9.83366 3.23961 9.78571 3.14383 9.68983C3.04794 9.59394 3 9.47516 3 9.33349C3 9.19171 3.04794 9.07299 3.14383 8.97733C3.23961 8.88155 3.35833 8.83366 3.5 8.83366H12.5C12.6417 8.83366 12.7604 8.8816 12.8562 8.97749C12.9521 9.07338 13 9.19216 13 9.33383C13 9.4756 12.9521 9.59433 12.8562 9.68999C12.7604 9.78577 12.6417 9.83366 12.5 9.83366H3.5ZM3.5 7.16699C3.35833 7.16699 3.23961 7.11905 3.14383 7.02316C3.04794 6.92727 3 6.80849 3 6.66683C3 6.52505 3.04794 6.40633 3.14383 6.31066C3.23961 6.21488 3.35833 6.16699 3.5 6.16699H12.5C12.6417 6.16699 12.7604 6.21494 12.8562 6.31083C12.9521 6.40671 13 6.52549 13 6.66716C13 6.80894 12.9521 6.92766 12.8562 7.02333C12.7604 7.1191 12.6417 7.16699 12.5 7.16699H3.5Z"
+        d="M11 18C11 19.1 10.1 20 9 20C7.9 20 7 19.1 7 18C7 16.9 7.9 16 9 16C10.1 16 11 16.9 11 18ZM9 10C7.9 10 7 10.9 7 12C7 13.1 7.9 14 9 14C10.1 14 11 13.1 11 12C11 10.9 10.1 10 9 10ZM9 4C7.9 4 7 4.9 7 6C7 7.1 7.9 8 9 8C10.1 8 11 7.1 11 6C11 4.9 10.1 4 9 4ZM15 8C16.1 8 17 7.1 17 6C17 4.9 16.1 4 15 4C13.9 4 13 4.9 13 6C13 7.1 13.9 8 15 8ZM15 10C13.9 10 13 10.9 13 12C13 13.1 13.9 14 15 14C16.1 14 17 13.1 17 12C17 10.9 16.1 10 15 10ZM15 16C13.9 16 13 16.9 13 18C13 19.1 13.9 20 15 20C16.1 20 17 19.1 17 18C17 16.9 16.1 16 15 16Z"
         fill="currentColor"
       />
     </svg>

@@ -52,6 +52,7 @@ import type {
   EditorStateSnapshot,
 } from "../editor/types";
 import { BlockHandle } from "./BlockHandle";
+import { getBlockIconForBlock } from "./BlockIcon";
 import { BlockMenu } from "./BlockMenu";
 import { LatexPopup, type LatexPopupValue } from "./LatexPopup";
 import { LinkPopup, type LinkPopupValue } from "./LinkPopup";
@@ -150,6 +151,13 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
   const blockMenuModel = useMemo(
     () => buildBlockMenuModel(toolbarState.editorState),
     [toolbarState.editorState],
+  );
+  const handleMenuIcon = getBlockIconForBlock(
+    dragState?.target?.block ??
+      dragState?.sourceBlock ??
+      handleBlockRef.current ??
+      hoveredBlock ??
+      (toolbarState.editorState.focused ? selectionBlock : null),
   );
   const editorVisible = (rootRef.current?.getClientRects().length ?? 0) > 0;
 
@@ -1033,6 +1041,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
                   hoveredBlock ??
                   (toolbarState.editorState.focused ? selectionBlock : null),
               )}
+              menuIcon={handleMenuIcon}
               onOpenMenu={openBlockMenu}
               onMenuPointerDown={(event) => {
                 event.preventDefault();

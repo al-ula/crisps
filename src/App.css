@@ -34,7 +34,7 @@
     --size-field: 0.25rem;
     --border: 1px;
     --depth: 1;
-    --noise: 0;
+    --noise: 1;
 }
 
 @plugin "daisyui/theme" {
@@ -69,7 +69,7 @@
     --size-field: 0.25rem;
     --border: 1px;
     --depth: 1;
-    --noise: 0;
+    --noise: 1;
 }
 
 @theme {
@@ -388,7 +388,8 @@ body {
         background 0.1s,
         transform 0.1s;
     user-select: none;
-    box-shadow: 0 4px 16px color-mix(in oklch, var(--color-base-300) 22%, transparent);
+    box-shadow: 0 4px 16px
+        color-mix(in oklch, var(--color-base-300) 22%, transparent);
 }
 
 .block-handle-btn:hover {
@@ -408,7 +409,8 @@ body {
     background: var(--color-base-100);
     border: 1px solid var(--color-base-300);
     border-radius: 0.75rem;
-    box-shadow: 0 18px 40px color-mix(in oklch, var(--color-base-300) 35%, transparent);
+    box-shadow: 0 18px 40px
+        color-mix(in oklch, var(--color-base-300) 35%, transparent);
     padding: 0.5rem 0.625rem;
 }
 
@@ -573,7 +575,9 @@ body {
 }
 
 .block-popup-item {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     width: 100%;
     padding: 5px 10px;
     text-align: left;
@@ -606,11 +610,44 @@ body {
     gap: 8px;
 }
 
+.block-popup-item-icon {
+    width: 16px;
+    min-width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: inherit;
+    opacity: 0.8;
+}
+
+.block-popup-item-icon-text {
+    display: block;
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.block-popup-item-icon svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+    transform: translateY(0.5px);
+}
+
+.block-popup-item-icon-placeholder {
+    opacity: 0;
+}
+
 .block-popup-item-check {
     width: 12px;
     flex-shrink: 0;
     opacity: 0.7;
     font-size: 11px;
+    text-align: right;
 }
 
 .block-popup-item-danger {
@@ -623,8 +660,6 @@ body {
 
 .block-popup-item-submenu {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
 .block-popup-arrow {

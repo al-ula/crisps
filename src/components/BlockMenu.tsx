@@ -1,11 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MutableRefObject } from "react";
 import { createPortal } from "react-dom";
-import type {
-  BlockMenuItem,
-  BlockMenuItemKey,
-  BlockMenuModel,
-} from "../editor/blockMenuConfig";
+import type { BlockMenuItem, BlockMenuItemKey, BlockMenuModel } from "../editor/blockMenuConfig";
+import { BlockIconRenderer } from "./BlockIcon";
 
 type SubmenuKey = "add" | "change";
 type TopLevelEntry =
@@ -155,7 +152,7 @@ export function BlockMenu({
               }}
             >
               <span className="block-popup-item-label">
-                <span className="block-popup-item-check" />
+                <span className="block-popup-item-icon block-popup-item-icon-placeholder" />
                 <span>{entry.label}</span>
               </span>
               <span className="block-popup-arrow">›</span>
@@ -272,9 +269,14 @@ function BlockMenuItemButton({
       onClick={() => onActivateItem(item.key)}
     >
       <span className="block-popup-item-label">
-        <span className="block-popup-item-check">{item.active ? "✓" : ""}</span>
+        {item.kind === "topLevel" ? (
+        <span className="block-popup-item-icon block-popup-item-icon-placeholder" />
+        ) : (
+          <BlockIconRenderer icon={item.icon} />
+        )}
         <span>{item.label}</span>
       </span>
+      <span className="block-popup-item-check">{item.active ? "✓" : ""}</span>
     </button>
   );
 }
