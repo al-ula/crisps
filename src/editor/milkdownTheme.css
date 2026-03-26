@@ -1,0 +1,793 @@
+@import "katex/dist/katex.min.css";
+@import "@milkdown/kit/prose/view/style/prosemirror.css";
+@import "@milkdown/kit/prose/tables/style/tables.css";
+
+.editor-container .milkdown {
+    --editor-bg: var(--color-base-100);
+    --editor-surface: var(--color-base-200);
+    --editor-surface-low: var(--color-base-300);
+    --editor-text: var(--color-base-content);
+    --editor-text-muted: color-mix(
+        in oklch,
+        var(--color-base-content) 72%,
+        transparent
+    );
+    --editor-outline: var(--color-base-300);
+    --editor-accent: var(--color-primary);
+    --editor-accent-strong: color-mix(in oklch, var(--color-primary) 82%, white 18%);
+    --editor-hover: color-mix(in oklch, var(--color-base-200) 90%, transparent);
+    --editor-selection: color-mix(in oklch, var(--color-primary) 24%, transparent);
+    --editor-inline-code: var(--color-error);
+    --editor-inline-area: var(--color-base-200);
+    --editor-shadow-1:
+        0 4px 16px color-mix(in oklch, var(--color-base-300) 22%, transparent);
+    --editor-shadow-2:
+        0 18px 40px color-mix(in oklch, var(--color-base-300) 35%, transparent);
+    --editor-font-heading:
+        "Source Code Pro", ui-serif, Georgia, Cambria, "Times New Roman", Times,
+        serif;
+    --editor-font-body:
+        "Source Code Pro", ui-serif, Georgia, Cambria, "Times New Roman", Times,
+        serif;
+    --editor-font-code:
+        "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco,
+        Consolas, monospace;
+    position: relative;
+    font-family: var(--editor-font-body);
+    color: var(--editor-text);
+    background: var(--editor-bg);
+}
+
+.editor-container .milkdown * {
+    box-sizing: border-box;
+}
+
+.editor-container .milkdown button,
+.editor-container .milkdown input {
+    border: none;
+    background: none;
+    box-shadow: none;
+}
+
+.editor-container .milkdown button:focus,
+.editor-container .milkdown input:focus,
+.editor-container .milkdown :focus-visible,
+.editor-container .milkdown .ProseMirror-focused {
+    outline: none;
+}
+
+.editor-container .milkdown .ProseMirror *::selection {
+    background: var(--editor-selection);
+}
+
+.editor-container .milkdown .ProseMirror li.ProseMirror-selectednode {
+    background: var(--editor-selection);
+    outline: none;
+}
+
+.editor-container .milkdown .ProseMirror .ProseMirror-selectednode {
+    background: color-mix(in oklch, var(--editor-selection) 40%, transparent);
+    outline: none;
+}
+
+.editor-container .milkdown .ProseMirror img {
+    vertical-align: bottom;
+    max-width: 100%;
+}
+
+.editor-container .milkdown .ProseMirror img.ProseMirror-selectednode {
+    background: none;
+    outline: 2px solid var(--editor-accent);
+}
+
+.editor-container .milkdown .ProseMirror h1,
+.editor-container .milkdown .ProseMirror h2,
+.editor-container .milkdown .ProseMirror h3,
+.editor-container .milkdown .ProseMirror h4,
+.editor-container .milkdown .ProseMirror h5,
+.editor-container .milkdown .ProseMirror h6 {
+    font-family: var(--editor-font-heading);
+    font-weight: 400;
+    padding: 2px 0;
+}
+
+.editor-container .milkdown .ProseMirror h1 {
+    font-size: 42px;
+    line-height: 50px;
+    margin-top: 32px;
+}
+
+.editor-container .milkdown .ProseMirror h2 {
+    font-size: 36px;
+    line-height: 44px;
+    margin-top: 28px;
+}
+
+.editor-container .milkdown .ProseMirror h3 {
+    font-size: 32px;
+    line-height: 40px;
+    margin-top: 24px;
+}
+
+.editor-container .milkdown .ProseMirror h4 {
+    font-size: 28px;
+    line-height: 36px;
+    margin-top: 20px;
+}
+
+.editor-container .milkdown .ProseMirror h5 {
+    font-size: 24px;
+    line-height: 32px;
+    margin-top: 16px;
+}
+
+.editor-container .milkdown .ProseMirror h6 {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 28px;
+    margin-top: 16px;
+}
+
+.editor-container .milkdown .ProseMirror p {
+    font-size: 16px;
+    line-height: 24px;
+    padding: 4px 0;
+}
+
+.editor-container .milkdown .ProseMirror blockquote {
+    margin: 1.5rem 0;
+    padding-left: 1rem;
+    border-left: 4px solid var(--editor-outline);
+    color: color-mix(in oklch, var(--editor-text) 80%, transparent);
+    font-style: italic;
+}
+
+.editor-container .milkdown .ProseMirror code {
+    color: var(--editor-inline-code);
+    background: color-mix(in oklch, var(--editor-inline-area) 60%, transparent);
+    font-family: var(--editor-font-code);
+    padding: 0 2px;
+    border-radius: 4px;
+    font-size: 87.5%;
+    display: inline-block;
+    line-height: 1.4286;
+}
+
+.editor-container .milkdown .ProseMirror a {
+    color: var(--editor-accent);
+    text-decoration: underline;
+}
+
+.editor-container .milkdown .ProseMirror pre {
+    background: color-mix(in oklch, var(--editor-inline-area) 60%, transparent);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.editor-container .milkdown .ProseMirror pre code {
+    padding: 0;
+    background: transparent;
+}
+
+.editor-container .milkdown .milkdown-code-block {
+    display: block;
+    position: relative;
+    padding: 8px 20px 20px;
+    background: var(--editor-surface);
+    margin: 4px 0;
+}
+
+.editor-container .milkdown .milkdown-code-block.selected {
+    outline: 1px solid var(--editor-accent);
+}
+
+.editor-container .milkdown .milkdown-code-block .language-picker {
+    padding-top: 10px;
+    width: max-content;
+    position: absolute;
+    z-index: 999;
+}
+
+.editor-container .milkdown .milkdown-code-block .hidden {
+    display: none !important;
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-editor,
+.editor-container .milkdown .milkdown-code-block .cm-gutters,
+.editor-container .milkdown .milkdown-code-block .cm-panel {
+    background: var(--editor-surface);
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel {
+    font-family: var(--editor-font-body);
+    color: var(--editor-text);
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel input,
+.editor-container .milkdown .milkdown-code-block .tools input {
+    caret-color: var(--editor-outline);
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel input {
+    border-radius: 4px;
+    background: var(--editor-surface-low);
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel > button,
+.editor-container .milkdown .milkdown-code-block .tools .tools-button-group button,
+.editor-container .milkdown .milkdown-code-block .tools .language-button {
+    cursor: pointer;
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel > button {
+    text-transform: capitalize;
+    background: var(--editor-surface-low);
+    color: var(--editor-text-muted);
+    border: 1px solid var(--editor-outline);
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel > button:hover,
+.editor-container .milkdown .milkdown-code-block .tools .language-button:hover {
+    background: var(--editor-hover);
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel > label {
+    display: inline-flex;
+    align-items: center;
+    text-transform: capitalize;
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel > label input[type="checkbox"] {
+    border-radius: 4px;
+    cursor: pointer;
+    appearance: none;
+    background: var(--editor-surface-low);
+    width: 1.15em;
+    height: 1.15em;
+    border: 1px solid var(--editor-outline);
+    display: grid;
+    place-content: center;
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel > label input[type="checkbox"]::before {
+    content: "";
+    transform-origin: bottom left;
+    width: 0.65em;
+    height: 0.65em;
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em var(--editor-outline);
+    clip-path: polygon(
+        14% 44%,
+        0 65%,
+        50% 100%,
+        100% 16%,
+        80% 0%,
+        43% 62%
+    );
+}
+
+.editor-container .milkdown .milkdown-code-block .cm-panel > label input[type="checkbox"]:checked::before {
+    transform: scale(1);
+}
+
+.editor-container .milkdown .milkdown-code-block .tools {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .tools-button-group {
+    display: flex;
+    gap: 2px;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .tools-button-group button {
+    background: var(--editor-surface-low);
+    color: var(--editor-text-muted);
+    padding: 4px 10px;
+    opacity: 0;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 600;
+    font-family: var(--editor-font-body);
+    transition: opacity 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .tools-button-group button svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .tools-button-group button:first-child {
+    border-top-left-radius: 100px;
+    border-bottom-left-radius: 100px;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .tools-button-group button:last-child {
+    border-top-right-radius: 100px;
+    border-bottom-right-radius: 100px;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .language-button {
+    display: flex;
+    align-items: center;
+    font-family: var(--editor-font-body);
+    gap: 6px;
+    padding: 2px 4px 2px 8px;
+    background: var(--editor-surface-low);
+    color: var(--editor-text-muted);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    margin-bottom: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .language-button .expand-icon {
+    transition: transform 0.2s ease-in-out;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .language-button .expand-icon svg {
+    width: 14px;
+    height: 14px;
+    color: var(--editor-outline);
+}
+
+.editor-container .milkdown .milkdown-code-block .tools .language-button[data-expanded="true"] .expand-icon {
+    transform: rotate(180deg);
+}
+
+.editor-container .milkdown .milkdown-code-block:hover .language-button,
+.editor-container .milkdown .milkdown-code-block:hover .tools-button-group > button {
+    opacity: 1;
+}
+
+.editor-container .milkdown .milkdown-code-block .list-wrapper {
+    background: var(--editor-surface-low);
+    border-radius: 12px;
+    box-shadow: var(--editor-shadow-1);
+    width: 240px;
+    padding-top: 12px;
+}
+
+.editor-container .milkdown .milkdown-code-block .language-list {
+    height: 410px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0;
+    padding: 0;
+}
+
+.editor-container .milkdown .milkdown-image-inline {
+    outline: none;
+    display: inline-flex;
+    vertical-align: text-bottom;
+}
+
+.editor-container .milkdown .milkdown-image-inline input,
+.editor-container .milkdown .milkdown-image-block input {
+    background: transparent;
+    outline: none;
+    border: 0;
+    caret-color: var(--editor-outline);
+}
+
+.editor-container .milkdown .milkdown-image-inline > .empty-image-inline {
+    display: inline-flex;
+}
+
+.editor-container .milkdown .milkdown-image-inline > .empty-image-inline .confirm,
+.editor-container .milkdown .milkdown-image-block > .image-edit .confirm,
+.editor-container .milkdown .milkdown-image-block > .image-wrapper .operation > .operation-item {
+    cursor: pointer;
+}
+
+.editor-container .milkdown .milkdown-image-inline > .empty-image-inline .link-importer,
+.editor-container .milkdown .milkdown-image-block > .image-edit .link-importer {
+    position: relative;
+    flex: 1;
+}
+
+.editor-container .milkdown .milkdown-image-inline > .empty-image-inline .link-importer > .link-input-area {
+    width: 208px;
+    color: var(--editor-text);
+    display: flex;
+}
+
+.editor-container .milkdown .milkdown-image-inline > .empty-image-inline .link-importer .placeholder,
+.editor-container .milkdown .milkdown-image-block > .image-edit .link-importer .placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    cursor: text;
+}
+
+.editor-container .milkdown .milkdown-image-inline .hidden {
+    display: none !important;
+}
+
+.editor-container .milkdown .milkdown-image-inline.empty.selected,
+.editor-container .milkdown .milkdown-image-inline.selected {
+    background: none;
+}
+
+.editor-container .milkdown .milkdown-image-inline.empty.selected .empty-image-inline {
+    box-shadow: var(--editor-shadow-1);
+}
+
+.editor-container .milkdown .milkdown-image-inline.selected,
+.editor-container .milkdown .milkdown-image-block.selected {
+    outline: 1px solid var(--editor-accent);
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline {
+    align-items: center;
+    padding: 4px 10px;
+    gap: 10px;
+    background: var(--editor-surface);
+    font-family: var(--editor-font-body);
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .image-icon {
+    padding: 3px;
+    width: 24px;
+    height: 24px;
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .image-icon svg,
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .confirm svg {
+    width: 18px;
+    height: 18px;
+    fill: var(--editor-outline);
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .link-importer {
+    height: 24px;
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .link-importer .placeholder {
+    color: color-mix(in oklch, var(--editor-text) 40%, transparent);
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .link-importer .placeholder .uploader {
+    cursor: pointer;
+    display: flex;
+    gap: 8px;
+    color: var(--editor-accent);
+    justify-content: center;
+    transition: color 0.2s;
+    font-family: var(--editor-font-body);
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .link-importer.focus .placeholder .uploader {
+    color: unset;
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .link-importer .placeholder .text {
+    margin-left: 8px;
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .confirm {
+    display: flex;
+    width: 24px;
+    height: 24px;
+    padding: 3px;
+    border-radius: 8px;
+    color: var(--editor-accent);
+}
+
+.editor-container .milkdown .milkdown-image-inline .empty-image-inline .confirm:hover {
+    background: var(--editor-hover);
+}
+
+.editor-container .milkdown .milkdown-image-block {
+    outline: none;
+    margin: 4px 0;
+    display: block;
+}
+
+.editor-container .milkdown .milkdown-image-block > .image-wrapper {
+    position: relative;
+    width: fit-content;
+    margin: 0 auto;
+    min-width: 100px;
+}
+
+.editor-container .milkdown .milkdown-image-block > .image-wrapper .operation {
+    position: absolute;
+    display: flex;
+}
+
+.editor-container .milkdown .milkdown-image-block > .image-wrapper img {
+    max-width: 100%;
+    min-height: 100px;
+    display: block;
+    object-fit: cover;
+}
+
+.editor-container .milkdown .milkdown-image-block > .image-wrapper > .image-resize-handle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.editor-container .milkdown .milkdown-image-block > .image-wrapper > .image-resize-handle:hover {
+    cursor: row-resize;
+}
+
+.editor-container .milkdown .milkdown-image-block > .caption-input {
+    display: block;
+    width: 100%;
+    text-align: center;
+    color: var(--editor-text);
+}
+
+.editor-container .milkdown .milkdown-image-block > .image-edit {
+    display: flex;
+}
+
+.editor-container .milkdown .milkdown-list-item-block {
+    display: block;
+    padding: 0;
+}
+
+.editor-container .milkdown .milkdown-list-item-block > .list-item {
+    display: flex;
+    align-items: flex-start;
+}
+
+.editor-container .milkdown .milkdown-list-item-block > .list-item > .children {
+    min-width: 0;
+    flex: 1;
+}
+
+.editor-container .milkdown .milkdown-list-item-block li {
+    gap: 10px;
+}
+
+.editor-container .milkdown .milkdown-list-item-block li .label-wrapper,
+.editor-container .milkdown .milkdown-list-item-block li .label-wrapper svg {
+    color: var(--editor-outline);
+    fill: var(--editor-outline);
+}
+
+.editor-container .milkdown .milkdown-list-item-block li .label-wrapper {
+    height: 32px;
+    width: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.editor-container .milkdown .milkdown-list-item-block li .label-wrapper .label {
+    height: 32px;
+    padding: 4px 0;
+    width: 24px;
+    text-align: right;
+}
+
+.editor-container .milkdown .milkdown-list-item-block li .label-wrapper .checked,
+.editor-container .milkdown .milkdown-list-item-block li .label-wrapper .unchecked {
+    cursor: pointer;
+}
+
+.editor-container .milkdown .milkdown-list-item-block li .label-wrapper .readonly {
+    cursor: not-allowed;
+}
+
+.editor-container .milkdown .milkdown-placeholder::before {
+    position: absolute;
+    color: color-mix(in oklch, var(--editor-text) 40%, transparent);
+    pointer-events: none;
+    height: 0;
+    content: attr(data-placeholder);
+}
+
+.editor-container .milkdown .milkdown-table-block {
+    display: block;
+    margin: 4px 0;
+}
+
+.editor-container .milkdown .milkdown-table-block th,
+.editor-container .milkdown .milkdown-table-block td {
+    border: 1px solid color-mix(in oklch, var(--editor-outline) 20%, transparent);
+    padding: 4px 16px;
+}
+
+.editor-container .milkdown .milkdown-table-block th .ProseMirror-selectednode,
+.editor-container .milkdown .milkdown-table-block td .ProseMirror-selectednode {
+    background-color: transparent !important;
+}
+
+.editor-container .milkdown .milkdown-table-block th:has(.ProseMirror-selectednode),
+.editor-container .milkdown .milkdown-table-block td:has(.ProseMirror-selectednode) {
+    outline: 1px solid var(--editor-accent);
+    outline-offset: -1px;
+}
+
+.editor-container .milkdown .milkdown-table-block .selectedCell::after {
+    background-color: var(--editor-selection);
+    opacity: 0.4;
+}
+
+.editor-container .milkdown .milkdown-table-block .drag-preview {
+    background-color: var(--editor-surface);
+    opacity: 0.4;
+    position: absolute;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    outline: 1px solid var(--editor-accent);
+    outline-offset: -1px;
+}
+
+.editor-container .milkdown .milkdown-table-block .drag-preview[data-show="false"] {
+    display: none;
+}
+
+.editor-container .milkdown .milkdown-table-block .handle {
+    position: absolute;
+    font-size: 14px;
+    transition: opacity ease-in-out 0.2s;
+}
+
+.editor-container .milkdown .milkdown-table-block .handle[data-show="false"] {
+    opacity: 0;
+}
+
+.editor-container .milkdown .milkdown-table-block svg {
+    fill: var(--editor-outline);
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle,
+.editor-container .milkdown .milkdown-table-block .line-handle .add-button {
+    background-color: var(--editor-surface);
+    color: var(--editor-outline);
+    box-shadow: var(--editor-shadow-1);
+    transition: background-color 0.2s ease-in-out;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle {
+    z-index: 50;
+    left: -999px;
+    top: -999px;
+    cursor: grab;
+    border-radius: 100px;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle:hover,
+.editor-container .milkdown .milkdown-table-block .line-handle .add-button:hover {
+    background-color: var(--editor-hover);
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle:has(.button-group:hover) {
+    background-color: var(--editor-surface);
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle[data-role="col-drag-handle"] {
+    transform: translateY(50%);
+    padding: 0 6px;
+    width: 28px;
+    height: 16px;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle[data-role="row-drag-handle"] {
+    transform: translateX(50%);
+    padding: 6px 0;
+    width: 16px;
+    height: 28px;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle .button-group {
+    position: absolute;
+    transform: translateX(-50%);
+    left: 50%;
+    top: -52px;
+    display: flex;
+    background-color: var(--editor-surface);
+    border-radius: 8px;
+    box-shadow: var(--editor-shadow-1);
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle .button-group::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    height: 8px;
+    background-color: transparent;
+    width: 100%;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle .button-group[data-show="false"] {
+    display: none;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle .button-group button {
+    cursor: pointer;
+    margin: 6px;
+    padding: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 4px;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle .button-group button svg {
+    width: 24px;
+    height: 24px;
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle .button-group button:hover {
+    border-radius: 8px;
+    background-color: var(--editor-hover);
+}
+
+.editor-container .milkdown .milkdown-table-block .cell-handle .button-group button:active,
+.editor-container .milkdown .milkdown-table-block .line-handle .add-button:active {
+    background: var(--editor-selection);
+}
+
+.editor-container .milkdown .milkdown-table-block .line-handle {
+    z-index: 20;
+    background-color: var(--editor-accent);
+}
+
+.editor-container .milkdown .milkdown-table-block .line-handle[data-role="x-line-drag-handle"] {
+    height: 1px;
+    z-index: 2;
+}
+
+.editor-container .milkdown .milkdown-table-block .line-handle[data-role="x-line-drag-handle"] .add-button {
+    position: absolute;
+    transform: translateX(-50%) translateY(-50%);
+    padding: 6px 0;
+    width: 16px;
+    height: 28px;
+}
+
+.editor-container .milkdown .milkdown-table-block .line-handle[data-role="y-line-drag-handle"] {
+    width: 1px;
+    z-index: 1;
+}
+
+.editor-container .milkdown .milkdown-table-block .line-handle[data-role="y-line-drag-handle"] .add-button {
+    position: absolute;
+    transform: translateY(-50%) translateX(-50%);
+    padding: 0 6px;
+    width: 28px;
+    height: 16px;
+}
+
+.editor-container .milkdown .milkdown-table-block .line-handle[data-display-type="indicator"] .add-button {
+    display: none;
+}
+
+.editor-container .milkdown .milkdown-table-block.readonly .handle {
+    display: none;
+}
+
+.editor-container .milkdown span[data-type="math_inline"] {
+    padding: 0 4px;
+    display: inline-block;
+    vertical-align: bottom;
+    color: var(--editor-accent);
+}

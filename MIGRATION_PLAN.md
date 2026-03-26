@@ -1,4 +1,4 @@
-# Milkdown Migration Plan
+# Milkdown Migration Complete
 
 ## Goal
 
@@ -13,27 +13,27 @@ Finish the Milkdown migration without regressing file handling, source mode, men
 - The MDXEditor/Lexical fallback and feature-flag cutover have already been removed.
 - No `.mdxeditor*` selectors remain.
 - Crepe's built-in selection toolbar is disabled and replaced with a custom Milkdown-backed selection toolbar and custom link popup.
-- The current Milkdown path in `src/components/MilkdownEditor.tsx` no longer depends on Crepe for editor bootstrapping or lifecycle, but still keeps Crepe theme CSS and the Crepe LaTeX feature as temporary dependencies.
-- The remaining tracked work is to replace the remaining Crepe-backed feature usage with app-owned Milkdown setup, then finish the block-level UI rewrite on top of that foundation.
+- The current Milkdown path in `src/components/MilkdownEditor.tsx` no longer depends on Crepe for runtime behavior, LaTeX support, or theme CSS.
+- Editor theming is now app-owned and aligned to DaisyUI tokens through `src/editor/milkdownTheme.css`.
+- The migration work is complete; only ongoing regression validation and polish remain as normal product maintenance.
 
 ## Migration Strategy
 
 Use a staged swap, not a one-shot rewrite.
 
 - Keep the existing app shell, Tauri commands, and file workflow.
-- The editor adapter and single-editor host already exist, so the remaining tracked work is finishing the last Crepe-backed feature ports and the block-level overlay rewrite.
+- The editor adapter and single-editor host already exist, and the migration work is now focused on parity validation rather than remaining Crepe ports.
 - Rebuild the custom overlays against Milkdown and ProseMirror only after the core editor flow is working.
 - Finish removing legacy migration scaffolding as parity lands.
 - Keep visual review and functional review as manual sign-off steps rather than separate tracked tasks.
-- Keep `@milkdown/crepe` installed temporarily as a reference for feature implementations, editor bootstrapping behavior, and styles while equivalent app-owned Milkdown behavior is rebuilt.
 
-## Progress Snapshot
+## Completion Snapshot
 
-- Done: Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 10, MDX fallback removal.
-- In progress: Task 9.
-- Pending: Task 8.
+- Done: Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8, Task 9, Task 10, MDX fallback removal.
+- In progress: None.
+- Pending: None.
 
-## Backlog
+## Completed Work Log
 
 ### Task 1: Editor contract extraction
 
@@ -155,7 +155,6 @@ Scope:
 - Preserve the current adapter contract, frontmatter handling, markdown sync behavior, source mode integration, and selection/link popup integrations.
 - Port or rewire the Crepe-backed feature setup currently relied on by the editor bootstrap, including code block/editor integrations and image upload behavior, so accepted Task 5 behavior does not regress during the shell cutover.
 - Reimplement the block-edit foundation in app-owned Milkdown/ProseMirror code so later block UI work no longer depends on Crepe runtime behavior.
-- Keep `@milkdown/crepe` as a dependency temporarily as a reference for feature behavior, bootstrapping behavior, and styles during follow-up ports.
 
 Acceptance:
 - The app no longer depends on Crepe runtime bootstrapping or Crepe-managed editor lifecycle.
@@ -168,16 +167,16 @@ Acceptance:
 
 ### Task 8: Implement LaTeX without Crepe
 
-Status: pending.
+Status: done.
 
 Scope:
-- Replace the remaining `@milkdown/crepe/feature/latex` runtime dependency with an app-owned Milkdown LaTeX implementation.
+- Replace the remaining Crepe LaTeX runtime dependency with an app-owned Milkdown LaTeX implementation.
 - Port the current inline math node, markdown parsing/serialization, input rules, and code block preview behavior into app-owned editor modules.
 - Preserve current inline LaTeX toggle behavior and markdown output compatibility while removing the Crepe LaTeX feature import.
-- Decide whether Crepe theme CSS remains temporarily after the LaTeX port or whether Task 8 also moves the remaining editor styling needed by LaTeX into app-owned CSS.
+- Keep LaTeX styling compatible with the app-owned editor theme.
 
 Acceptance:
-- The app no longer imports `@milkdown/crepe/feature/latex` at runtime.
+- The app no longer imports any Crepe LaTeX runtime feature.
 - Inline LaTeX insertion, editing, and toggle behavior still work.
 - Math markdown roundtrips correctly for inline math and LaTeX block/code preview behavior.
 - Existing command and selection flows do not regress after the LaTeX port.
@@ -204,9 +203,6 @@ Current implementation status:
 - Tables now resolve as active blocks for the side handle path.
 - Recent handle-targeting fixes now keep the hovered block stable while moving from content into the side handle gutter, so text blocks no longer snap back to the caret block during the hover-to-handle transition.
 - Post-change verification still passes with `npx tsc --noEmit` and `npm run build`.
-
-Remaining work before Task 9 can be closed:
-- None.
 
 Acceptance:
 - Hover and caret block detection work for the custom block control.
@@ -235,28 +231,29 @@ Current acceptance coverage:
 Status: done.
 
 Scope:
-- Flip the feature flag.
-- Remove MDXEditor, Lexical, and old bridge code after parity is confirmed.
+- Complete the post-cutover cleanup after parity is confirmed.
+- Remove MDXEditor, Lexical, and old bridge code.
+- Remove the final direct Crepe dependency after replacing its remaining theme CSS with app-owned, DaisyUI-driven editor styling.
 
 Acceptance:
-- The app builds cleanly with no MDXEditor or Lexical dependencies left.
+- The app builds cleanly with no MDXEditor, Lexical, or Crepe dependencies left.
+- The editor theme is app-owned and sourced from DaisyUI tokens rather than Crepe theme imports.
 
-## Remaining Recommended Order
+## Remaining Follow-Up
 
-1. Task 8
+- None.
 
-## Main Risks
+## Residual Risks
 
 - `frontmatter` is currently first-class in the editor and may need custom Milkdown work if edge cases show up.
-- The remaining Crepe-backed LaTeX feature and theme CSS still need explicit removal or long-term retention decisions.
 - Visual polish and regression validation now depend on manual review rather than tracked implementation tasks.
 
-## Definition of Done
+## Completion Criteria
 
 - Milkdown replaces MDXEditor for the main editing experience.
 - File operations and dirty tracking behave the same or better.
 - Source mode remains functional.
 - Menu and Tauri actions still work.
-- The editor runtime no longer depends on Crepe's packaged shell, and remaining Crepe-backed feature usage is either removed or explicitly retained by decision.
+- The editor runtime and theme no longer depend on Crepe.
 - Block add and block change behavior are restored through app-owned Milkdown UI.
 - Saved markdown output is stable for the supported feature set.

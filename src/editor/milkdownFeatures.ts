@@ -27,10 +27,6 @@ import type { Selection } from "@milkdown/kit/prose/state";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import {
-  cursor as cursorPlugin,
-  dropIndicatorConfig,
-} from "@milkdown/kit/plugin/cursor";
-import {
   $ctx,
   $prose,
 } from "@milkdown/kit/utils";
@@ -66,18 +62,6 @@ export function useCodeMirrorFeature(editor: Editor, config: AppCodeMirrorConfig
       }));
     })
     .use(codeBlockComponent);
-}
-
-export function useCursorFeature(editor: Editor) {
-  editor
-    .config((ctx) => {
-      ctx.update(dropIndicatorConfig.key, () => ({
-        class: "crepe-drop-cursor",
-        width: 4,
-        color: "#89dceb",
-      }));
-    })
-    .use(cursorPlugin);
 }
 
 export function useImageFeature(
@@ -223,7 +207,7 @@ function createPlaceholderDecoration(
 
   const before = $pos.before();
   return Decoration.node(before, before + node.nodeSize, {
-    class: "crepe-placeholder",
+    class: "milkdown-placeholder",
     "data-placeholder": placeholderText,
   });
 }

@@ -61,7 +61,7 @@ export function BlockHandle({
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         >
-          <CrepeDragHandleIcon />
+          <BlockDragHandleIcon />
         </button>
       </div>
     </div>
@@ -79,7 +79,7 @@ function BlockMenuIcon() {
   );
 }
 
-function CrepeDragHandleIcon() {
+function BlockDragHandleIcon() {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
       <path

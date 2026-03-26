@@ -7,8 +7,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import "@milkdown/crepe/theme/common/style.css";
-import "@milkdown/crepe/theme/frame.css";
+import "../editor/milkdownTheme.css";
 import { editorViewCtx } from "@milkdown/kit/core";
 import { undoDepth, redoDepth } from "@milkdown/kit/prose/history";
 import { findNodeInSelection } from "@milkdown/kit/prose";
