@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, MutableRefObject } from "react";
+import { createPortal } from "react-dom";
 import type {
   BlockMenuItem,
   BlockMenuItemKey,
@@ -33,8 +34,10 @@ export function BlockMenu({
   onClose,
 }: BlockMenuProps) {
   const [openSubmenu, setOpenSubmenu] = useState<SubmenuKey | null>(null);
-  const [submenuStyle, setSubmenuStyle] = useState<CSSProperties>({});
+  const [submenuStyle, setSubmenuStyle] = useState<CSSProperties | null>(null);
   const [hoveredKey, setHoveredKey] = useState<BlockMenuItemKey | null>(null);
+  const submenuRef = useRef<HTMLDivElement | null>(null);
+  const submenuAnchorRectRef = useRef<DOMRect | null>(null);
 
   const topLevelEntries = useMemo<TopLevelEntry[]>(
     () => [
@@ -51,10 +54,27 @@ export function BlockMenu({
   useEffect(() => {
     if (!visible) {
       setOpenSubmenu(null);
-      setSubmenuStyle({});
+      setSubmenuStyle(null);
       setHoveredKey(null);
+      submenuAnchorRectRef.current = null;
     }
   }, [visible]);
+
+  useLayoutEffect(() => {
+    if (!visible || !openSubmenu || !submenuRef.current) return;
+
+    const anchorRect =
+      submenuAnchorRectRef.current ??
+      getSubmenuTriggerRect(openSubmenu, menuRef.current);
+    if (!anchorRect) return;
+
+    setSubmenuStyle(
+      buildSubmenuStyle(
+        anchorRect,
+        submenuRef.current,
+      ),
+    );
+  }, [menuRef, openSubmenu, submenuItems.length, visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -68,7 +88,13 @@ export function BlockMenu({
 
       if (event.key === "ArrowRight") {
         event.preventDefault();
-        setOpenSubmenu((current) => current ?? "add");
+        const next = openSubmenu ?? "add";
+        submenuAnchorRectRef.current = getSubmenuTriggerRect(
+          next,
+          menuRef.current,
+        );
+        setSubmenuStyle(null);
+        setOpenSubmenu(next);
         return;
       }
 
@@ -110,31 +136,22 @@ export function BlockMenu({
               key={entry.key}
               type="button"
               className={`block-popup-item block-popup-item-submenu${isOpen ? " is-active" : ""}`}
+              data-submenu-key={entry.key}
               onMouseEnter={(event) => {
                 setHoveredKey(null);
+                submenuAnchorRectRef.current =
+                  event.currentTarget.getBoundingClientRect();
+                setSubmenuStyle(null);
                 setOpenSubmenu(entry.key);
-                const rect = event.currentTarget.getBoundingClientRect();
-                setSubmenuStyle({
-                  left: rect.right + 12,
-                  top: Math.max(
-                    8,
-                    Math.min(rect.top, window.innerHeight - 360),
-                  ),
-                });
               }}
               onClick={(event) => {
                 setHoveredKey(null);
-                const rect = event.currentTarget.getBoundingClientRect();
+                submenuAnchorRectRef.current =
+                  event.currentTarget.getBoundingClientRect();
+                setSubmenuStyle(null);
                 setOpenSubmenu((current) =>
                   current === entry.key ? null : entry.key,
                 );
-                setSubmenuStyle({
-                  left: rect.right + 12,
-                  top: Math.max(
-                    8,
-                    Math.min(rect.top, window.innerHeight - 360),
-                  ),
-                });
               }}
             >
               <span className="block-popup-item-label">
@@ -160,29 +177,73 @@ export function BlockMenu({
           />
         );
       })}
-      {openSubmenu && submenuItems.length > 0 ? (
-        <div
-          className="block-handle-popup block-popup-submenu-menu"
-          style={submenuStyle}
-          onMouseEnter={() => {
-            setOpenSubmenu(openSubmenu);
-            setHoveredKey(null);
-          }}
-        >
-          {submenuItems.map((item) => (
-            <BlockMenuItemButton
-              key={item.key}
-              item={item}
-              active={hoveredKey === item.key}
-              onHoverItem={onHoverItem}
-              onActivateItem={onActivateItem}
-              onMouseEnter={() => setHoveredKey(item.key)}
-            />
-          ))}
-        </div>
-      ) : null}
+      {openSubmenu && submenuItems.length > 0
+        ? createPortal(
+            <div
+              ref={submenuRef}
+              className="block-handle-popup block-popup-submenu-menu"
+              style={
+                submenuStyle ?? {
+                  left: -9999,
+                  top: -9999,
+                  visibility: "hidden",
+                }
+              }
+              onMouseEnter={() => {
+                setOpenSubmenu(openSubmenu);
+                setHoveredKey(null);
+              }}
+            >
+              {submenuItems.map((item) => (
+                <BlockMenuItemButton
+                  key={item.key}
+                  item={item}
+                  active={hoveredKey === item.key}
+                  onHoverItem={onHoverItem}
+                  onActivateItem={onActivateItem}
+                  onMouseEnter={() => setHoveredKey(item.key)}
+                />
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
+}
+
+function getSubmenuTriggerRect(
+  submenuKey: SubmenuKey,
+  menuElement: HTMLDivElement | null,
+): DOMRect | null {
+  const trigger = menuElement?.querySelector<HTMLButtonElement>(
+    `[data-submenu-key="${submenuKey}"]`,
+  );
+  return trigger?.getBoundingClientRect() ?? null;
+}
+
+function buildSubmenuStyle(
+  anchorRect: DOMRect,
+  submenuElement: HTMLDivElement | null,
+): CSSProperties {
+  const viewportPadding = 8;
+  const gap = 12;
+  const submenuWidth = submenuElement?.offsetWidth ?? 200;
+  const submenuHeight = submenuElement?.offsetHeight ?? 0;
+  const preferredRight = anchorRect.right + gap;
+  const preferredLeft = anchorRect.left - submenuWidth - gap;
+  const maxRight = window.innerWidth - submenuWidth - viewportPadding;
+  const fitsRight = preferredRight <= maxRight;
+  const left = fitsRight
+    ? preferredRight
+    : Math.max(viewportPadding, preferredLeft);
+  const maxTop = Math.max(
+    viewportPadding,
+    window.innerHeight - submenuHeight - viewportPadding,
+  );
+  const top = Math.max(viewportPadding, Math.min(anchorRect.top, maxTop));
+
+  return { left, top };
 }
 
 interface BlockMenuItemButtonProps {

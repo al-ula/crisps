@@ -42,6 +42,7 @@ export function BlockHandle({
           type="button"
           className="block-handle-btn"
           aria-label="Block menu"
+          data-role="block-menu-trigger"
           onPointerDown={onMenuPointerDown}
           onPointerUp={(event) => {
             event.preventDefault();

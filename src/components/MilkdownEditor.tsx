@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -109,6 +110,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
   const selectionBlockRef = useRef<ActiveBlock | null>(null);
   const menuBlockRef = useRef<ActiveBlock | null>(null);
   const menuTriggerBlockRef = useRef<ActiveBlock | null>(null);
+  const menuTriggerRectRef = useRef<DOMRect | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const handleBlockRef = useRef<ActiveBlock | null>(null);
   const handleElementRef = useRef<HTMLElement | null>(null);
@@ -159,6 +161,24 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
   useEffect(() => {
     blockMenuStateRef.current = blockMenuState;
   }, [blockMenuState]);
+
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    if (!blockMenuState.visible || !blockMenuState.activeBlock || !view) return;
+
+    const anchorRect = getBlockMenuAnchorRect(view, blockMenuState.activeBlock);
+    if (!anchorRect || !blockMenuRef.current) return;
+
+    const nextStyle = buildBlockMenuStyle(anchorRect, blockMenuRef.current);
+    setBlockMenuState((current) =>
+      current.visible
+        ? {
+            ...current,
+            style: nextStyle,
+          }
+        : current,
+    );
+  }, [blockMenuState.activeBlock, blockMenuState.visible]);
 
   const setHoveredBlock = (block: ActiveBlock | null) => {
     hoveredBlockRef.current = block;
@@ -211,25 +231,53 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
     );
   };
 
+  const getBlockMenuTriggerElement = () =>
+    blockHandleRef.current?.querySelector<HTMLButtonElement>(
+      '[data-role="block-menu-trigger"]',
+    ) ?? null;
+
+  const getBlockMenuAnchorRect = (
+    view: EditorView,
+    block: ActiveBlock | null,
+  ): DOMRect | null =>
+    menuTriggerRectRef.current ??
+    getBlockMenuTriggerElement()?.getBoundingClientRect() ??
+    getActiveBlockElement(view, block)?.getBoundingClientRect() ??
+    null;
+
+  const isBlockMenuOverlayTarget = (target: Node | null) =>
+    Boolean(
+      target &&
+      (
+        blockHandleRef.current?.contains(target) ||
+        blockMenuRef.current?.contains(target) ||
+        (target instanceof Element &&
+          target.closest(".block-popup-submenu-menu"))
+      ),
+    );
+
   const refreshBlockControls = (view: EditorView) => {
     const nextSelectionBlock = findActiveBlock(view.state);
     setSelectionBlock(nextSelectionBlock);
 
     const handleBlock = getVisibleHandleBlock(view, nextSelectionBlock);
+    const handleAnchorBlock =
+      handleBlock ??
+      (blockMenuStateRef.current.visible ? menuBlockRef.current : null);
     handleBlockRef.current = handleBlock;
     const handleElement =
-      (dragStateRef.current?.target?.block.pos === handleBlock?.pos
+      (dragStateRef.current?.target?.block.pos === handleAnchorBlock?.pos
         ? dragStateRef.current?.target?.element
         : null) ??
-      (hoveredBlockRef.current?.pos === handleBlock?.pos
+      (hoveredBlockRef.current?.pos === handleAnchorBlock?.pos
         ? hoveredElementRef.current
         : null) ??
-      (menuBlockRef.current?.pos === handleBlock?.pos
+      (menuBlockRef.current?.pos === handleAnchorBlock?.pos
         ? getActiveBlockElement(view, menuBlockRef.current)
         : null) ??
-      getActiveBlockElement(view, handleBlock);
+      getActiveBlockElement(view, handleAnchorBlock);
     handleElementRef.current = handleElement ?? null;
-    setHandleStyle(getBlockControlPosition(view, handleBlock));
+    setHandleStyle(getBlockControlPosition(view, handleAnchorBlock));
 
     if (blockMenuStateRef.current.visible && menuBlockRef.current) {
       setBlockMenuState((current) =>
@@ -237,7 +285,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
           ? {
               ...current,
               style: buildBlockMenuStyle(
-                getActiveBlockElement(view, menuBlockRef.current),
+                getBlockMenuAnchorRect(view, menuBlockRef.current),
                 blockMenuRef.current,
               ),
               activeBlock: menuBlockRef.current,
@@ -485,6 +533,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       setHoveredTarget(null);
       setMenuBlock(null);
       menuTriggerBlockRef.current = null;
+      menuTriggerRectRef.current = null;
       setDragState(null);
       setBlockMenuState(EMPTY_BLOCK_MENU_STATE);
       setDropIndicatorState(null);
@@ -513,7 +562,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       const handleDocumentPointerMove = (event: PointerEvent) => {
         if (dragStateRef.current?.sourceBlock) return;
         const target = event.target as Node | null;
-        if (target && (blockHandleRef.current?.contains(target) || blockMenuRef.current?.contains(target))) {
+        if (isBlockMenuOverlayTarget(target)) {
           return;
         }
 
@@ -540,14 +589,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 
       const handleDocumentPointerDown = (event: PointerEvent) => {
         const target = event.target as Node | null;
-        if (
-          target &&
-          (
-            view.dom.contains(target) ||
-            blockHandleRef.current?.contains(target) ||
-            blockMenuRef.current?.contains(target)
-          )
-        ) {
+        if (target && (view.dom.contains(target) || isBlockMenuOverlayTarget(target))) {
           return;
         }
 
@@ -734,6 +776,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
   const closeBlockMenu = (focus = true) => {
     setMenuBlock(null);
     menuTriggerBlockRef.current = null;
+    menuTriggerRectRef.current = null;
     setBlockMenuState(EMPTY_BLOCK_MENU_STATE);
     refreshEditorChrome();
     if (focus) viewRef.current?.focus();
@@ -816,17 +859,18 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
     closeLinkPopup(false);
     closeLatexPopup(false);
     setMenuBlock(activeBlock);
-    const style = buildBlockMenuStyle(
-      getActiveBlockElement(view, activeBlock),
-      blockMenuRef.current,
-    );
     setBlockMenuState({
       visible: true,
-      style,
+      style: {
+        left: -9999,
+        top: -9999,
+        visibility: "hidden",
+      },
       activeBlock,
       activeItemKey: blockMenuModel.addItems[0]?.key ?? null,
     });
     menuTriggerBlockRef.current = null;
+    menuTriggerRectRef.current = null;
   };
 
   const handleBlockMenuAction = async (key: BlockMenuItemKey) => {
@@ -966,7 +1010,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (blockMenuRef.current?.contains(target)) return;
+      if (isBlockMenuOverlayTarget(target)) return;
       closeBlockMenu();
     };
 
@@ -994,6 +1038,8 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
               onMenuPointerDown={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                menuTriggerRectRef.current =
+                  event.currentTarget.getBoundingClientRect();
                 menuTriggerBlockRef.current =
                   handleBlockRef.current ??
                   hoveredBlockRef.current ??
@@ -1475,10 +1521,10 @@ function updateInlineLatex(view: EditorView, value: LatexPopupValue): boolean {
 }
 
 function buildBlockMenuStyle(
-  anchorElement: HTMLElement | null,
+  anchorRect: DOMRect | null,
   popupElement: HTMLDivElement | null,
 ): CSSProperties {
-  const rect = anchorElement?.getBoundingClientRect();
+  const rect = anchorRect;
   const controlLeft = rect?.right ?? 8;
   const controlTop = rect?.top ?? 48;
   const popupWidth = popupElement?.offsetWidth ?? 248;
