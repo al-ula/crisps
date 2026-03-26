@@ -225,10 +225,9 @@ export function getBlockControlPosition(
   if (!element) return {};
 
   const rect = element.getBoundingClientRect();
-  const editorRect = view.dom.getBoundingClientRect();
   const left = Math.max(
     8,
-    Math.min(editorRect.left - SIDE_CONTROL_WIDTH - SIDE_CONTROL_GAP, window.innerWidth - 8),
+    Math.min(rect.left - SIDE_CONTROL_WIDTH - SIDE_CONTROL_GAP, window.innerWidth - 8),
   );
   const top = Math.max(48, Math.min(rect.top, window.innerHeight - 40));
   return { left, top };

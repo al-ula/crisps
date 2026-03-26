@@ -44,6 +44,8 @@ interface FileContextValue {
   fileState: FileState;
   dispatch: React.Dispatch<FileAction>;
   editorState: EditorStateSnapshot;
+  themeMode: "auto" | "light" | "dark";
+  isDarkTheme: boolean;
   setEditorAdapter: (adapter: EditorAdapter | null) => void;
   sourceMode: boolean;
   sourceText: string;
@@ -52,6 +54,7 @@ interface FileContextValue {
   handleEditorAction: (action: EditorAction) => Promise<void>;
   loadDocument: (content: string, path: string | null) => void;
   toggleSourceMode: () => void;
+  setThemeMode: (mode: "auto" | "light" | "dark") => void;
   sidebarOpen: boolean;
   toggleSidebar: () => void;
   handleNew: () => Promise<void>;
@@ -76,7 +79,19 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const editorAdapterRef = useRef<EditorAdapter | null>(null);
   const editorSubscriptionRef = useRef<(() => void) | null>(null);
   const adapterVersionRef = useRef(0);
+  const systemThemeMediaRef = useRef<MediaQueryList | null>(null);
+  if (!systemThemeMediaRef.current) {
+    systemThemeMediaRef.current = window.matchMedia(
+      "(prefers-color-scheme: dark)",
+    );
+  }
   const [editorState, setEditorState] = useState(EMPTY_EDITOR_STATE);
+  const [themeMode, setThemeMode] = useState<"auto" | "light" | "dark">(
+    "light",
+  );
+  const [systemPrefersDark, setSystemPrefersDark] = useState(
+    systemThemeMediaRef.current.matches,
+  );
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -123,6 +138,28 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         }
       });
   }, []);
+
+  useEffect(() => {
+    const mediaQuery = systemThemeMediaRef.current;
+    if (!mediaQuery) return;
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemPrefersDark(event.matches);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  const isDarkTheme =
+    themeMode === "dark" || (themeMode === "auto" && systemPrefersDark);
+
+  useEffect(() => {
+    const themeName = isDarkTheme ? "catppuccin-mocha" : "catppuccin-latte";
+    document.documentElement.setAttribute("data-theme", themeName);
+    document.body.setAttribute("data-theme", themeName);
+    document.body.classList.toggle("dark-theme", isDarkTheme);
+  }, [isDarkTheme]);
 
   useEffect(() => {
     return () => {
@@ -235,6 +272,8 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         fileState,
         dispatch,
         editorState,
+        themeMode,
+        isDarkTheme,
         setEditorAdapter,
         sourceMode,
         sourceText,
@@ -243,6 +282,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         handleEditorAction,
         loadDocument,
         toggleSourceMode,
+        setThemeMode,
         sidebarOpen,
         toggleSidebar,
         handleNew,

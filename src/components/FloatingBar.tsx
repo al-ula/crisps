@@ -5,7 +5,7 @@ import { useFileContext } from "../context/FileContext";
 import type { EditorStateSnapshot } from "../editor/types";
 
 const BASE_BTN =
-  "inline-flex items-center justify-center w-7 h-[22px] rounded-[var(--window-radius)] border-0 text-base-content cursor-pointer select-none transition-[background,opacity] duration-100";
+  "inline-flex items-center justify-center w-7 h-[22px] rounded-[var(--radius-selector)] border-0 text-base-content cursor-pointer select-none transition-[background,opacity] duration-100";
 
 const IDLE_BTN = `${BASE_BTN} opacity-60 hover:opacity-100 hover:bg-base-300`;
 const ACTIVE_BTN = `${BASE_BTN} opacity-100 bg-base-300`;
@@ -122,9 +122,18 @@ const MENU_SECTIONS: MenuSection[] = [
   {
     label: "View",
     items: [
-      { type: "item", label: "Toggle Sidebar" },
+      { type: "item", label: "Toggle Sidebar", action: "toggle-sidebar" },
       { type: "divider" },
-      { type: "item", label: "Source / Preview" },
+      { type: "item", label: "Source / Preview", action: "source-mode" },
+      {
+        type: "submenu",
+        label: "Theme",
+        items: [
+          { type: "item", label: "Auto", action: "theme:auto" },
+          { type: "item", label: "Light", action: "theme:light" },
+          { type: "item", label: "Dark", action: "theme:dark" },
+        ],
+      },
       { type: "item", label: "Zen Mode" },
     ],
   },
@@ -171,8 +180,11 @@ export function FloatingBar() {
     handleSave,
     handleSaveAs,
     handleEditorAction,
+    themeMode,
+    isDarkTheme,
     sourceMode,
     toggleSourceMode,
+    setThemeMode,
     sidebarOpen,
     toggleSidebar,
   } = useFileContext();
@@ -358,6 +370,7 @@ export function FloatingBar() {
     if (action === "undo") return editorState.canUndo;
     if (action === "redo") return editorState.canRedo;
     if (FILE_ACTIONS.has(action)) return true;
+    if (action.startsWith("theme:")) return true;
     if (FORMAT_ACTIONS.has(action)) return true;
     if (action.startsWith("blockType:")) return true;
     if (LIST_ACTIONS.has(action)) return true;
@@ -376,6 +389,9 @@ export function FloatingBar() {
     if (action === "bulletList") return editorState.listType === "bullet";
     if (action === "orderedList") return editorState.listType === "number";
     if (action === "checklist") return editorState.listType === "check";
+    if (action === "theme:auto") return themeMode === "auto";
+    if (action === "theme:light") return themeMode === "light" && !isDarkTheme;
+    if (action === "theme:dark") return themeMode === "dark" && isDarkTheme;
     return false;
   }
 
@@ -406,6 +422,15 @@ export function FloatingBar() {
         return;
       case "source-mode":
         toggleSourceMode();
+        return;
+      case "theme:auto":
+        setThemeMode("auto");
+        return;
+      case "theme:light":
+        setThemeMode("light");
+        return;
+      case "theme:dark":
+        setThemeMode("dark");
         return;
     }
     if (action.startsWith("blockType:")) {
@@ -499,248 +524,202 @@ export function FloatingBar() {
   }
 
   return (
-    <div className="absolute inset-x-0 top-0 z-[1030] h-10 flex items-start justify-between px-2 pt-1.5">
+    <div className="absolute inset-x-0 top-0 z-[1030] flex h-11 items-start justify-between px-3 pt-1.5">
       <div className="absolute inset-0" data-tauri-drag-region />
       <div className="pointer-events-none absolute left-1/2 top-1.5 z-10 -translate-x-1/2">
         <div
-          className="flex h-8 max-w-[min(50vw,24rem)] items-center justify-center rounded-[var(--window-radius)] bg-base-200/75 px-4 text-[12px] font-medium tracking-[0.08em] text-base-content/80 shadow-sm backdrop-blur-sm"
+          className="pointer-events-auto flex h-8 max-w-[min(50vw,24rem)] items-center justify-center rounded-[var(--radius-box)] bg-base-200/75 px-4 text-[12px] font-semibold tracking-[0.08em] text-base-content/90 shadow-sm backdrop-blur-sm"
           data-tauri-drag-region
           title={titleLabel}
         >
           <span className="truncate">{titleLabel}</span>
         </div>
       </div>
-      <div
-        ref={containerRef}
-        className="pointer-events-auto relative z-10 flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--window-radius)] px-1.5 py-1 shadow-sm"
-      >
-        {/* Sidebar toggle */}
-        <button
-          className={sidebarOpen ? ACTIVE_BTN : IDLE_BTN}
-          aria-label="Toggle Sidebar"
-          aria-pressed={sidebarOpen}
-          onClick={toggleSidebar}
+
+        <div
+          ref={containerRef}
+          className="pointer-events-auto relative z-10 flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--radius-box)] px-1.5 py-1 shadow-sm"
         >
-          {sidebarOpen ? (
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-              <path d="M17 16l-4-4 4-4" />
-            </svg>
-          ) : (
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-              <path d="M13 8l4 4-4 4" />
-            </svg>
-          )}
-        </button>
-        <span className="w-px h-3.5 bg-base-300 mx-[3px] shrink-0" />
-
-        {/* Menu button */}
-        <button
-          className={menuOpen ? ACTIVE_BTN : IDLE_BTN}
-          aria-label="Menu"
-          aria-expanded={menuOpen}
-          onClick={handleMenuButtonClick}
-        >
-          <svg width="14" height="4" viewBox="0 0 14 4">
-            <circle cx="2" cy="2" r="1.5" fill="currentColor" />
-            <circle cx="7" cy="2" r="1.5" fill="currentColor" />
-            <circle cx="12" cy="2" r="1.5" fill="currentColor" />
-          </svg>
-        </button>
-
-        {/* Main dropdown — section list */}
-        {menuOpen && (
-          <div
-            className="block-handle-popup"
-            style={{
-              ...mainPopupStyle,
-              position: "fixed",
-              overflow: "visible",
-              minWidth: 120,
-              zIndex: 1020,
-            }}
-            onMouseLeave={scheduleClose}
-          >
-            {MENU_SECTIONS.map((section) => (
-              <button
-                key={section.label}
-                className="block-popup-item block-popup-item-submenu"
-                style={
-                  activeSection === section.label
-                    ? { background: "var(--color-base-200)" }
-                    : undefined
-                }
-                onMouseEnter={(e) => handleSectionEnter(section.label, e)}
-              >
-                <span>{section.label}</span>
-                <span className="block-popup-arrow">›</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Level-2: section items */}
-        {menuOpen && activeSectionData && (
-          <div
-            className="block-handle-popup"
-            style={{
-              ...submenuStyle,
-              position: "fixed",
-              minWidth: 200,
-              zIndex: 1020,
-            }}
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
-          >
-            {activeSectionData.items.map((item, i) => renderItem(item, i))}
-          </div>
-        )}
-
-        {/* Level-3: nested submenu (Block) */}
-        {menuOpen && activeSubmenuData && (
-          <div
-            className="block-handle-popup"
-            style={{
-              ...subsubmenuStyle,
-              position: "fixed",
-              minWidth: 160,
-              zIndex: 1020,
-            }}
-            onMouseEnter={() => {
-              cancelClose();
-              cancelCloseSubmenu();
-            }}
-            onMouseLeave={() => {
-              closeSubmenuTimer.current = setTimeout(
-                () => setActiveSubmenuItem(null),
-                150,
-              );
-            }}
-          >
-            {activeSubmenuData.items.map((item, i) =>
-              renderItem(item, i, true),
-            )}
-          </div>
-        )}
-      </div>
-      <div className="relative z-10 flex items-start gap-2">
-        {/* Source mode island */}
-        <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--window-radius)] px-1.5 py-1 shadow-sm">
+          {/* Sidebar toggle */}
           <button
-            className={sourceMode ? ACTIVE_BTN : IDLE_BTN}
-            aria-label="Toggle source mode"
-            aria-pressed={sourceMode}
-            onClick={toggleSourceMode}
-            title="Source mode"
+            className={sidebarOpen ? ACTIVE_BTN : IDLE_BTN}
+            aria-label="Toggle Sidebar"
+            aria-pressed={sidebarOpen}
+            onClick={toggleSidebar}
           >
-            <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-              <path
-                d="M5 1L1 5l4 4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M11 1l4 4-4 4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <line
-                x1="9.5"
-                y1="0.5"
-                x2="6.5"
-                y2="9.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
-        <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--window-radius)] px-1.5 py-1 shadow-sm">
-          <button
-            className={WINDOW_BTN}
-            aria-label="Minimize window"
-            onClick={handleMinimize}
-            title="Minimize"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M2 6h8"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-          <button
-            className={WINDOW_BTN}
-            aria-label={isMaximized ? "Restore window" : "Maximize window"}
-            onClick={handleToggleMaximize}
-            title={isMaximized ? "Restore down" : "Maximize"}
-          >
-            {isMaximized ? (
+            {sidebarOpen ? (
               <svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
                 fill="none"
-                aria-hidden="true"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <path d="M17 16l-4-4 4-4" />
+              </svg>
+            ) : (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <path d="M13 8l4 4-4 4" />
+              </svg>
+            )}
+          </button>
+          <span className="w-px h-3.5 bg-base-300 mx-[3px] shrink-0" />
+
+          {/* Menu button */}
+          <button
+            className={menuOpen ? ACTIVE_BTN : IDLE_BTN}
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            onClick={handleMenuButtonClick}
+          >
+            <svg width="14" height="4" viewBox="0 0 14 4">
+              <circle cx="2" cy="2" r="1.5" fill="currentColor" />
+              <circle cx="7" cy="2" r="1.5" fill="currentColor" />
+              <circle cx="12" cy="2" r="1.5" fill="currentColor" />
+            </svg>
+          </button>
+
+          {/* Main dropdown — section list */}
+          {menuOpen && (
+            <div
+              className="block-handle-popup"
+              style={{
+                ...mainPopupStyle,
+                position: "fixed",
+                overflow: "visible",
+                minWidth: 120,
+                zIndex: 1020,
+              }}
+              onMouseLeave={scheduleClose}
+            >
+              {MENU_SECTIONS.map((section) => (
+                <button
+                  key={section.label}
+                  className="block-popup-item block-popup-item-submenu"
+                  style={
+                    activeSection === section.label
+                      ? { background: "var(--color-base-200)" }
+                      : undefined
+                  }
+                  onMouseEnter={(e) => handleSectionEnter(section.label, e)}
+                >
+                  <span>{section.label}</span>
+                  <span className="block-popup-arrow">›</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Level-2: section items */}
+          {menuOpen && activeSectionData && (
+            <div
+              className="block-handle-popup"
+              style={{
+                ...submenuStyle,
+                position: "fixed",
+                minWidth: 200,
+                zIndex: 1020,
+              }}
+              onMouseEnter={cancelClose}
+              onMouseLeave={scheduleClose}
+            >
+              {activeSectionData.items.map((item, i) => renderItem(item, i))}
+            </div>
+          )}
+
+          {/* Level-3: nested submenu (Block) */}
+          {menuOpen && activeSubmenuData && (
+            <div
+              className="block-handle-popup"
+              style={{
+                ...subsubmenuStyle,
+                position: "fixed",
+                minWidth: 160,
+                zIndex: 1020,
+              }}
+              onMouseEnter={() => {
+                cancelClose();
+                cancelCloseSubmenu();
+              }}
+              onMouseLeave={() => {
+                closeSubmenuTimer.current = setTimeout(
+                  () => setActiveSubmenuItem(null),
+                  150,
+                );
+              }}
+            >
+              {activeSubmenuData.items.map((item, i) =>
+                renderItem(item, i, true),
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="relative z-10 flex items-start gap-2">
+          {/* Source mode island */}
+          <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--radius-box)] px-1.5 py-1 shadow-sm">
+            <button
+              className={sourceMode ? ACTIVE_BTN : IDLE_BTN}
+              aria-label="Toggle source mode"
+              aria-pressed={sourceMode}
+              onClick={toggleSourceMode}
+              title="Source mode"
+            >
+              <svg
+                width="16"
+                height="10"
+                viewBox="0 0 16 10"
+                fill="none"
               >
                 <path
-                  d="M4.25 2.25h4a1.5 1.5 0 0 1 1.5 1.5v4"
+                  d="M5 1L1 5l4 4"
                   stroke="currentColor"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                <rect
-                  x="2.25"
-                  y="4.25"
-                  width="5.5"
-                  height="5.5"
-                  rx="1"
+                <path
+                  d="M11 1l4 4-4 4"
                   stroke="currentColor"
                   strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-                <path
-                  d="M5 2.25h1.75a1 1 0 0 1 1 1V5"
+                <line
+                  x1="9.5"
+                  y1="0.5"
+                  x2="6.5"
+                  y2="9.5"
                   stroke="currentColor"
                   strokeWidth="1.5"
                   strokeLinecap="round"
                 />
               </svg>
-            ) : (
+            </button>
+          </div>
+          <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--radius-box)] px-1.5 py-1 shadow-sm">
+            <button
+              className={WINDOW_BTN}
+              aria-label="Minimize window"
+              onClick={handleMinimize}
+              title="Minimize"
+            >
               <svg
                 width="12"
                 height="12"
@@ -748,40 +727,93 @@ export function FloatingBar() {
                 fill="none"
                 aria-hidden="true"
               >
-                <rect
-                  x="2.25"
-                  y="2.25"
-                  width="7.5"
-                  height="7.5"
-                  rx="1.25"
+                <path
+                  d="M2 6h8"
                   stroke="currentColor"
                   strokeWidth="1.5"
+                  strokeLinecap="round"
                 />
               </svg>
-            )}
-          </button>
-          <button
-            className={WINDOW_BTN}
-            aria-label="Close window"
-            onClick={handleClose}
-            title="Close"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              aria-hidden="true"
+            </button>
+            <button
+              className={WINDOW_BTN}
+              aria-label={isMaximized ? "Restore window" : "Maximize window"}
+              onClick={handleToggleMaximize}
+              title={isMaximized ? "Restore down" : "Maximize"}
             >
-              <path
-                d="M3 3l6 6M9 3L3 9"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
+              {isMaximized ? (
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M4.25 2.25h4a1.5 1.5 0 0 1 1.5 1.5v4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <rect
+                    x="2.25"
+                    y="4.25"
+                    width="5.5"
+                    height="5.5"
+                    rx="1"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                  <path
+                    d="M5 2.25h1.75a1 1 0 0 1 1 1V5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <rect
+                    x="2.25"
+                    y="2.25"
+                    width="7.5"
+                    height="7.5"
+                    rx="1.25"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                </svg>
+              )}
+            </button>
+            <button
+              className={WINDOW_BTN}
+              aria-label="Close window"
+              onClick={handleClose}
+              title="Close"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 3l6 6M9 3L3 9"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
       </div>
     </div>
   );
