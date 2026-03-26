@@ -24,17 +24,18 @@ Use a staged swap, not a one-shot rewrite.
 - The editor adapter and single-editor host already exist, so the remaining tracked work is finishing the last Crepe-backed feature ports and the block-level overlay rewrite.
 - Rebuild the custom overlays against Milkdown and ProseMirror only after the core editor flow is working.
 - Finish removing legacy migration scaffolding as parity lands.
-- Keep visual review and functional review as manual sign-off steps rather than separate tracked PRs.
+- Keep visual review and functional review as manual sign-off steps rather than separate tracked tasks.
 - Keep `@milkdown/crepe` installed temporarily as a reference for feature implementations, editor bootstrapping behavior, and styles while equivalent app-owned Milkdown behavior is rebuilt.
 
 ## Progress Snapshot
 
-- Done: PR 1, PR 2, PR 3, PR 4, PR 5, PR 6, PR 7, PR 11, MDX fallback removal.
-- Pending: PR 8, PR 9, PR 10.
+- Done: Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 10, MDX fallback removal.
+- In progress: Task 9.
+- Pending: Task 8.
 
 ## Backlog
 
-### PR 1: Editor contract extraction
+### Task 1: Editor contract extraction
 
 Status: done.
 
@@ -50,7 +51,7 @@ Scope:
 Acceptance:
 - `src/App.tsx` and `src/components/FloatingBar.tsx` do not need to know whether the backing editor is MDXEditor or Milkdown.
 
-### PR 2: Milkdown spike behind a feature flag
+### Task 2: Milkdown spike behind a feature flag
 
 Status: done.
 
@@ -65,7 +66,7 @@ Acceptance:
 - Support focus.
 - Open, edit, save, and reopen a file successfully.
 
-### PR 3: Markdown and state bridge parity
+### Task 3: Markdown and state bridge parity
 
 Status: done.
 
@@ -76,7 +77,7 @@ Scope:
 Acceptance:
 - `new`, `open`, `save`, `save as`, dirty indicator, close confirm, and source-mode roundtrip all work.
 
-### PR 4: Command bridge migration
+### Task 4: Command bridge migration
 
 Status: done.
 
@@ -103,7 +104,7 @@ Acceptance:
   - image
   - thematic break
 
-### PR 5: Feature gap decisions
+### Task 5: Feature gap decisions
 
 Status: done.
 
@@ -125,7 +126,7 @@ Resolution:
 Acceptance:
 - Each item is implemented, replaced, or intentionally dropped with rationale.
 
-### PR 6: Selection toolbar rewrite
+### Task 6: Selection toolbar rewrite
 
 Status: done.
 
@@ -140,7 +141,7 @@ Acceptance:
 - The selection popup avoids the top floating bar and only appears for real text selections.
 - The selection toolbar now intentionally focuses on inline formatting and link actions; table insertion stays in the main insert/menu flow.
 
-### PR 7: Migrate off Crepe shell
+### Task 7: Migrate off Crepe shell
 
 Status: done.
 
@@ -152,7 +153,7 @@ Scope:
   - markdown replacement and markdown serialization flow
   - command execution wiring used by the adapter and Tauri action bridge
 - Preserve the current adapter contract, frontmatter handling, markdown sync behavior, source mode integration, and selection/link popup integrations.
-- Port or rewire the Crepe-backed feature setup currently relied on by the editor bootstrap, including code block/editor integrations and image upload behavior, so accepted PR 5 behavior does not regress during the shell cutover.
+- Port or rewire the Crepe-backed feature setup currently relied on by the editor bootstrap, including code block/editor integrations and image upload behavior, so accepted Task 5 behavior does not regress during the shell cutover.
 - Reimplement the block-edit foundation in app-owned Milkdown/ProseMirror code so later block UI work no longer depends on Crepe runtime behavior.
 - Keep `@milkdown/crepe` as a dependency temporarily as a reference for feature behavior, bootstrapping behavior, and styles during follow-up ports.
 
@@ -165,7 +166,7 @@ Acceptance:
 - Editor mount, unmount, and re-create flows clean up and reinitialize correctly without duplicate listeners or stale state.
 - The internal block-edit behavior needed for later block UI work is owned by app code rather than Crepe runtime behavior.
 
-### PR 8: Implement LaTeX without Crepe
+### Task 8: Implement LaTeX without Crepe
 
 Status: pending.
 
@@ -173,7 +174,7 @@ Scope:
 - Replace the remaining `@milkdown/crepe/feature/latex` runtime dependency with an app-owned Milkdown LaTeX implementation.
 - Port the current inline math node, markdown parsing/serialization, input rules, and code block preview behavior into app-owned editor modules.
 - Preserve current inline LaTeX toggle behavior and markdown output compatibility while removing the Crepe LaTeX feature import.
-- Decide whether Crepe theme CSS remains temporarily after the LaTeX port or whether PR 8 also moves the remaining editor styling needed by LaTeX into app-owned CSS.
+- Decide whether Crepe theme CSS remains temporarily after the LaTeX port or whether Task 8 also moves the remaining editor styling needed by LaTeX into app-owned CSS.
 
 Acceptance:
 - The app no longer imports `@milkdown/crepe/feature/latex` at runtime.
@@ -181,30 +182,38 @@ Acceptance:
 - Math markdown roundtrips correctly for inline math and LaTeX block/code preview behavior.
 - Existing command and selection flows do not regress after the LaTeX port.
 
-### PR 9: Add block UI rewrite
+### Task 9: Crepe block-edit handle replacement with unified block menu
 
-Status: pending.
+Status: in progress.
 
 Scope:
-- Replace the built-in add-block affordance with the app's own block add UI.
-- Detect the active block and anchor a custom add control beside it.
-- Wire the add-block UI to the app-owned block-edit commands introduced in PR 7.
+- Reimplement the Crepe block-edit handle behavior with app-owned UI on top of the block-edit foundation introduced in Task 7.
+- Detect the active block and anchor a custom block control beside it.
+- Replace the built-in `+` affordance with a custom menu trigger instead of a dedicated add-only control.
+- Wire the custom block control to the app-owned block-edit commands introduced in Task 7.
+- Expand the custom block control into a unified block menu that handles both add and change actions.
+- Replace the remaining built-in block-edit menu behavior with app-owned UI.
+- Support block-level transforms and block management actions from one menu surface using the app-owned block-edit foundation introduced in Task 7.
+
+Current implementation status:
+- `src/components/MilkdownEditor.tsx` now owns block hover detection, caret-derived block tracking, menu-owned block targeting, drag state, drop cue rendering, and editor-viewport drag auto-scroll.
+- `src/editor/blockEdit.ts` now owns block resolution, block target DOM lookup, custom side-handle anchoring, drop-target resolution, and block move execution without relying on `@milkdown/kit/plugin/block` runtime behavior.
+- `src/editor/milkdownRuntime.ts` no longer wires the Milkdown block plugin into runtime behavior for side handles or drag/drop.
+- The side handle can now open the unified block menu and drag blocks without requiring the old Crepe provider path.
+- Custom drop cues render for before, after, and inside placements, and dragging near the top or bottom of the editor viewport auto-scrolls the editor so offscreen drops are possible.
+- Tables now resolve as active blocks for the side handle path.
+- Recent handle-targeting fixes now keep the hovered block stable while moving from content into the side handle gutter, so text blocks no longer snap back to the caret block during the hover-to-handle transition.
+- Post-change verification still passes with `npx tsc --noEmit` and `npm run build`.
+
+Remaining work before Task 9 can be closed:
+- Validate and harden non-text block coverage beyond tables, especially image blocks and thematic breaks.
+- Run a broader manual regression pass for handle targeting so hover, caret, and menu-owned states are confirmed across more document structures, not just the cases already fixed.
+- Run a broader regression pass for nested lists, blockquotes, reopened documents, and large drag moves to confirm the new app-owned behavior is stable enough to declare parity.
 
 Acceptance:
-- Hover and caret block detection work for block insertion affordances.
-- The custom add UI opens reliably at the active block.
+- Hover and caret block detection work for the custom block control.
+- The custom block menu opens reliably at the active block.
 - Insert-below style block creation works through the custom UI.
-
-### PR 10: Unified block menu
-
-Status: pending.
-
-Scope:
-- Expand the custom block UI into a unified block menu that handles both add and change actions.
-- Replace the remaining built-in block menu behavior with app-owned UI.
-- Support block-level transforms and block management actions from one menu surface using the app-owned block-edit foundation introduced in PR 7.
-
-Acceptance:
 - The unified block menu supports:
   - turn into
   - insert below
@@ -213,7 +222,18 @@ Acceptance:
 - delete block
 - Add and change actions are reachable from the same block-level UI.
 
-### PR 11: Cutover and cleanup
+Current acceptance coverage:
+- Satisfied:
+  - Hover and caret block detection now work for the custom block control.
+  - The custom block menu opens from the app-owned side handle.
+  - Hovering a text block and moving into its handle no longer drops the visible handle back to the caret block.
+  - Insert-below, change actions, move up, move down, and delete all route through the unified app-owned block menu.
+  - Drag now shows an app-owned drop cue and can move blocks within the current viewport and to offscreen positions via auto-scroll.
+- Still needs sign-off:
+  - Full non-text block parity, especially image blocks and thematic breaks.
+  - Final regression validation across all supported block structures.
+
+### Task 10: Cutover and cleanup
 
 Status: done.
 
@@ -226,16 +246,15 @@ Acceptance:
 
 ## Remaining Recommended Order
 
-1. PR 8
-2. PR 9
-3. PR 10
+1. Task 8
+2. Finish Task 9 validation and hardening
 
 ## Main Risks
 
 - `frontmatter` is currently first-class in the editor and may need custom Milkdown work if edge cases show up.
 - The remaining Crepe-backed LaTeX feature and theme CSS still need explicit removal or long-term retention decisions.
-- The block UI rewrite depends on separating block-edit internals from Crepe runtime behavior before the final app-owned menus land.
-- Visual polish and regression validation now depend on manual review rather than tracked implementation PRs.
+- The block UI rewrite is now mostly app-owned, but still needs broader parity validation across non-text blocks and complex nested structures before it can be considered complete.
+- Visual polish and regression validation now depend on manual review rather than tracked implementation tasks.
 
 ## Definition of Done
 

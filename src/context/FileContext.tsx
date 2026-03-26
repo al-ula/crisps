@@ -150,6 +150,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       currentContentRef.current = content;
       savedContentRef.current = content;
       editorAdapterRef.current?.setMarkdown(content);
+      editorAdapterRef.current?.focus();
       setSourceText(content);
       if (path) {
         dispatch({ type: "SET_PATH", path });

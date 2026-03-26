@@ -35,7 +35,7 @@ import {
   $prose,
 } from "@milkdown/kit/utils";
 import type { Editor } from "@milkdown/kit/core";
-import { latex } from "@milkdown/crepe/feature/latex";
+import { useLatexFeature as useAppLatexFeature } from "./latexFeature";
 
 const appRuntimeCtx = $ctx(
   {
@@ -193,7 +193,7 @@ export function usePlaceholderFeature(editor: Editor) {
 }
 
 export function useLatexFeature(editor: Editor) {
-  latex(editor);
+  useAppLatexFeature(editor);
 }
 
 function isDocEmpty(doc: Node) {

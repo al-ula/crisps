@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Ctx } from "@milkdown/kit/ctx";
 import {
   defaultValueCtx,
@@ -22,17 +23,26 @@ import { getMarkdown, replaceAll } from "@milkdown/kit/utils";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import type { LanguageDescription } from "@codemirror/language";
 import {
+  type BlockPlacement,
+  canDropBlock,
+  type BlockDropTarget,
   deleteActiveBlock,
   findActiveBlock,
+  findBlockAtCoords,
+  findBlockFromDom,
+  getBlockControlPosition,
+  getDropIndicatorStyle,
   getActiveBlockElement,
   insertParagraphBelow,
+  moveBlockTo,
   moveActiveBlock,
+  resolveDropTargetAtCoords,
+  selectBlock,
   type ActiveBlock,
 } from "./blockEdit";
 import {
   setReadonlyState,
   useCodeMirrorFeature,
-  useCursorFeature,
   useImageFeature,
   useLatexFeature,
   useListItemFeature,
@@ -52,10 +62,25 @@ export interface MilkdownRuntime {
   blockEdit: {
     getActiveBlock: () => ActiveBlock | null;
     getActiveBlockElement: () => HTMLElement | null;
-    insertBelow: () => boolean;
+    getBlockControlPosition: (block: ActiveBlock | null) => CSSProperties;
+    findBlockFromDom: (target: EventTarget | null) => ActiveBlock | null;
+    findBlockAtCoords: (coords: { left: number; top: number }) => ActiveBlock | null;
+    resolveDropTargetAtCoords: (
+      coords: { left: number; top: number },
+      source: ActiveBlock | null,
+    ) => BlockDropTarget | null;
+    getDropIndicatorStyle: (target: BlockDropTarget | null) => CSSProperties | null;
+    selectBlock: (block?: ActiveBlock | null) => boolean;
+    insertBelow: (block?: ActiveBlock | null) => boolean;
     moveUp: () => boolean;
     moveDown: () => boolean;
-    deleteBlock: () => boolean;
+    moveBlockTo: (
+      source: ActiveBlock,
+      target: ActiveBlock,
+      placement: BlockPlacement,
+    ) => boolean;
+    canDropBlock: (source: ActiveBlock | null, target: ActiveBlock | null) => boolean;
+    deleteBlock: (block?: ActiveBlock | null) => boolean;
   };
 }
 
@@ -97,7 +122,6 @@ export function createMilkdownRuntime(
     languages: options.languages,
     renderLanguage: options.renderLanguage,
   });
-  useCursorFeature(editor);
   useImageFeature(editor, options.onUpload);
   useLatexFeature(editor);
   useListItemFeature(editor);
@@ -132,14 +156,37 @@ export function createMilkdownRuntime(
           const view = ctx.get(editorViewCtx);
           return getActiveBlockElement(view, findActiveBlock(view.state));
         }),
-      insertBelow: () =>
-        editor.action((ctx) => insertParagraphBelow(ctx.get(editorViewCtx))),
+      getBlockControlPosition: (block) =>
+        editor.action((ctx) =>
+          getBlockControlPosition(ctx.get(editorViewCtx), block),
+        ),
+      findBlockFromDom: (target) =>
+        editor.action((ctx) => findBlockFromDom(ctx.get(editorViewCtx), target)),
+      findBlockAtCoords: (coords) =>
+        editor.action((ctx) => findBlockAtCoords(ctx.get(editorViewCtx), coords)),
+      resolveDropTargetAtCoords: (coords, source) =>
+        editor.action((ctx) =>
+          resolveDropTargetAtCoords(ctx.get(editorViewCtx), coords, source),
+        ),
+      getDropIndicatorStyle: (target) =>
+        editor.action((ctx) =>
+          getDropIndicatorStyle(ctx.get(editorViewCtx), target),
+        ),
+      selectBlock: (block) =>
+        editor.action((ctx) => selectBlock(ctx.get(editorViewCtx), block ?? undefined)),
+      insertBelow: (block) =>
+        editor.action((ctx) => insertParagraphBelow(ctx.get(editorViewCtx), block ?? undefined)),
       moveUp: () =>
         editor.action((ctx) => moveActiveBlock(ctx.get(editorViewCtx), "up")),
       moveDown: () =>
         editor.action((ctx) => moveActiveBlock(ctx.get(editorViewCtx), "down")),
-      deleteBlock: () =>
-        editor.action((ctx) => deleteActiveBlock(ctx.get(editorViewCtx))),
+      moveBlockTo: (source, target, placement) =>
+        editor.action((ctx) =>
+          moveBlockTo(ctx.get(editorViewCtx), source, target, placement),
+        ),
+      canDropBlock: (source, target) => canDropBlock(source, target),
+      deleteBlock: (block) =>
+        editor.action((ctx) => deleteActiveBlock(ctx.get(editorViewCtx), block ?? undefined)),
     },
     setReadonly: (value: boolean) => {
       editable = !value;
