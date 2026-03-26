@@ -29,6 +29,7 @@ function AppInner() {
     sourceText,
     updateSourceText,
     sidebarOpen,
+    isDarkTheme,
   } = useFileContext();
   const [sidebarMode, setSidebarMode] = useState<SidebarLayoutMode>(() =>
     getSidebarLayoutMode(window.innerWidth),
@@ -145,6 +146,7 @@ function AppInner() {
             className="editor-container"
           >
             <EditorHost
+              isDarkTheme={isDarkTheme}
               onChange={handleEditorChange}
               onReady={setEditorAdapter}
             />

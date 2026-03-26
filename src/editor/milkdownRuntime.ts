@@ -22,6 +22,7 @@ import { gfm } from "@milkdown/kit/preset/gfm";
 import { getMarkdown, replaceAll } from "@milkdown/kit/utils";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import type { LanguageDescription } from "@codemirror/language";
+import type { Extension } from "@codemirror/state";
 import {
   type BlockPlacement,
   canDropBlock,
@@ -87,6 +88,7 @@ export interface MilkdownRuntime {
 export interface MilkdownRuntimeOptions {
   root: Node | string;
   defaultValue?: string;
+  extensions: Extension[];
   languages: LanguageDescription[];
   renderLanguage: (language: string, selected: boolean) => string;
   onUpload: (file: File) => Promise<string>;
@@ -119,6 +121,7 @@ export function createMilkdownRuntime(
     .use(gfm);
 
   useCodeMirrorFeature(editor, {
+    extensions: options.extensions,
     languages: options.languages,
     renderLanguage: options.renderLanguage,
   });

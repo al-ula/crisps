@@ -345,34 +345,34 @@ body {
     }
 }
 
-.editor-container .cm-editor {
+.editor-container > .cm-editor {
     background-color: var(--color-base-200);
     color: var(--color-base-content);
 }
 
-.editor-container .cm-gutters {
+.editor-container > .cm-editor .cm-gutters {
     background-color: var(--color-base-300);
     border-right-color: var(--color-codemirror-gutter-border);
     color: var(--color-codemirror-gutter-content);
 }
 
-.editor-container .cm-activeLineGutter {
+.editor-container > .cm-editor .cm-activeLineGutter {
     background-color: var(--color-neutral);
 }
 
-.editor-container .cm-activeLine {
+.editor-container > .cm-editor .cm-activeLine {
     background-color: var(--color-codemirror-active-line);
 }
 
-.editor-container .cm-cursor {
+.editor-container > .cm-editor .cm-cursor {
     border-left-color: var(--color-base-content);
 }
 
-.editor-container .cm-selectionBackground {
+.editor-container > .cm-editor .cm-selectionBackground {
     background-color: var(--color-codemirror-selection) !important;
 }
 
-.editor-container .cm-focused .cm-selectionBackground {
+.editor-container > .cm-editor.cm-focused .cm-selectionBackground {
     background-color: var(--color-codemirror-selection-focus) !important;
 }
 

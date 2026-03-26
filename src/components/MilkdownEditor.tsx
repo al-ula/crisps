@@ -19,6 +19,7 @@ import {
 import type { EditorView } from "@milkdown/kit/prose/view";
 import {
   CODE_BLOCK_CODEMIRROR_LANGUAGES,
+  getCodeBlockExtensions,
   renderCodeBlockLanguage,
 } from "../editor/codeBlockLanguages";
 import type { BlockMenuItemKey } from "../editor/blockMenuConfig";
@@ -59,6 +60,7 @@ import { LinkPopup, type LinkPopupValue } from "./LinkPopup";
 import { SelectionToolbar } from "./SelectionToolbar";
 
 interface MilkdownEditorProps {
+  isDarkTheme: boolean;
   onChange: (markdown: string) => void;
   onReady: (adapter: EditorAdapter | null) => void;
 }
@@ -84,7 +86,11 @@ const EMPTY_BLOCK_MENU_STATE: BlockMenuState = {
 
 const BLOCK_DRAG_MIME = "application/x-markdown-editor-block";
 
-export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
+export function MilkdownEditor({
+  isDarkTheme,
+  onChange,
+  onReady,
+}: MilkdownEditorProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const linkPopupRef = useRef<HTMLFormElement>(null);
@@ -485,6 +491,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
     const runtime = createMilkdownRuntime({
       root: rootRef.current,
       defaultValue: "",
+      extensions: getCodeBlockExtensions(isDarkTheme),
       languages: CODE_BLOCK_CODEMIRROR_LANGUAGES,
       renderLanguage: renderCodeBlockLanguage,
       onUpload: readFileAsDataUrl,
@@ -750,7 +757,7 @@ export function MilkdownEditor({ onChange, onReady }: MilkdownEditorProps) {
       unlisten?.();
       void runtime.destroy();
     };
-  }, [onReady]);
+  }, [isDarkTheme, onReady]);
 
   const refreshToolbarPosition = () => {
     if (!viewRef.current) return;

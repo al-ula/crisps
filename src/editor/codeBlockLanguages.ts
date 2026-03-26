@@ -1,12 +1,22 @@
-import { LanguageDescription } from "@codemirror/language";
+import { catppuccinLatte, catppuccinMocha } from "@catppuccin/codemirror";
+import {
+  LanguageDescription,
+  LanguageSupport,
+  StreamLanguage,
+} from "@codemirror/language";
 import { languages as languageData } from "@codemirror/language-data";
+import type { Extension } from "@codemirror/state";
+import { stex } from "@codemirror/legacy-modes/mode/stex";
 
 type CodeBlockLanguageOption = {
   id: string;
   label: string;
   aliases: readonly string[];
   match: string | readonly string[];
+  support?: LanguageSupport;
 };
+
+const latexSupport = new LanguageSupport(StreamLanguage.define(stex));
 
 export const CODE_BLOCK_LANGUAGE_OPTIONS: readonly CodeBlockLanguageOption[] = [
   {
@@ -69,10 +79,20 @@ export const CODE_BLOCK_LANGUAGE_OPTIONS: readonly CodeBlockLanguageOption[] = [
     aliases: ["python"],
     match: "Python",
   },
+  {
+    id: "latex",
+    label: "LaTeX",
+    aliases: ["tex"],
+    match: [],
+    support: latexSupport,
+  },
 ] as const;
 
-const CODE_BLOCK_LANGUAGE_LABELS = new Map(
-  CODE_BLOCK_LANGUAGE_OPTIONS.map(({ id, label }) => [id, label]),
+const CODE_BLOCK_LANGUAGE_LOOKUP = new Map(
+  CODE_BLOCK_LANGUAGE_OPTIONS.flatMap(({ id, label, aliases }) => [
+    [id, { id, label }] as const,
+    ...aliases.map((alias) => [alias, { id, label }] as const),
+  ]),
 );
 
 export const DEFAULT_CODE_BLOCK_LANGUAGE = "txt";
@@ -81,10 +101,14 @@ export const CODE_BLOCK_CODEMIRROR_LANGUAGES = CODE_BLOCK_LANGUAGE_OPTIONS.map(
   (option) => createCodeMirrorLanguage(option),
 ) as unknown as LanguageDescription[];
 
+export function getCodeBlockExtensions(isDarkTheme: boolean): Extension[] {
+  return [isDarkTheme ? catppuccinMocha : catppuccinLatte];
+}
+
 export function renderCodeBlockLanguage(language: string): string {
   const normalized = language.trim().toLowerCase();
-  const label = CODE_BLOCK_LANGUAGE_LABELS.get(normalized);
-  return label ? `${normalized} (${label})` : language;
+  const entry = CODE_BLOCK_LANGUAGE_LOOKUP.get(normalized);
+  return entry ? `${entry.id} (${entry.label})` : language;
 }
 
 function createCodeMirrorLanguage(
@@ -104,7 +128,10 @@ function createCodeMirrorLanguage(
     ],
     extensions: source?.extensions ?? [],
     filename: source?.filename,
-    support: source?.support,
-    load: () => source?.load() ?? Promise.resolve(undefined),
+    support: option.support ?? source?.support,
+    load: () =>
+      option.support
+        ? Promise.resolve(option.support)
+        : source?.load() ?? Promise.resolve(undefined),
   } as unknown as LanguageDescription;
 }

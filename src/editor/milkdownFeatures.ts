@@ -1,4 +1,5 @@
 import type { LanguageDescription } from "@codemirror/language";
+import type { Extension } from "@codemirror/state";
 import {
   codeBlockComponent,
   codeBlockConfig,
@@ -48,6 +49,7 @@ export function setReadonlyState(ctx: Ctx, readonly: boolean) {
 }
 
 export interface AppCodeMirrorConfig {
+  extensions: Extension[];
   languages: LanguageDescription[];
   renderLanguage: (language: string, selected: boolean) => string;
 }
@@ -57,6 +59,7 @@ export function useCodeMirrorFeature(editor: Editor, config: AppCodeMirrorConfig
     .config((ctx) => {
       ctx.update(codeBlockConfig.key, (defaultConfig) => ({
         ...defaultConfig,
+        extensions: config.extensions,
         languages: config.languages,
         renderLanguage: config.renderLanguage,
       }));
