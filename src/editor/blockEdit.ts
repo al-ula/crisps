@@ -59,8 +59,8 @@ export function resolveBlockAtPos(
   state: EditorState,
   pos: number,
 ): ActiveBlock | null {
-  const imageBlock = resolveImageBlockAtDocPos(state, pos);
-  if (imageBlock) return imageBlock;
+  const leafBlock = resolveLeafBlockAtDocPos(state, pos);
+  if (leafBlock) return leafBlock;
   return resolveBlockAtDocPos(state.doc, pos);
 }
 
@@ -154,6 +154,14 @@ export function findBlockFromDom(
         return quoteBlock;
       }
     }
+
+    const thematicBreakElement = target.closest("hr");
+    if (thematicBreakElement instanceof HTMLElement) {
+      const thematicBreakBlock = resolveBlockAroundDom(view, thematicBreakElement);
+      if (thematicBreakBlock?.typeName === "horizontal_rule") {
+        return thematicBreakBlock;
+      }
+    }
   }
 
   let current: Node | null = target;
@@ -167,13 +175,11 @@ export function findBlockFromDom(
         }
       }
 
-      const imageBlock = current.matches(".milkdown-image-block")
+      const leafBlockElement = current.matches(".milkdown-image-block, [data-type=\"image-block\"], hr")
         ? current
-        : current.matches('[data-type="image-block"]')
-          ? current
-          : null;
-      if (imageBlock instanceof HTMLElement) {
-        const block = resolveBlockAroundDom(view, imageBlock);
+        : current.closest(".milkdown-image-block, [data-type=\"image-block\"], hr");
+      if (leafBlockElement instanceof HTMLElement) {
+        const block = resolveBlockAroundDom(view, leafBlockElement);
         if (block) return block;
       }
 
@@ -550,7 +556,7 @@ function findBlockInsideElement(
   if (pos == null) return null;
 
   return (
-    resolveImageBlockAtDocPos(view.state, pos) ??
+    resolveLeafBlockAtDocPos(view.state, pos) ??
     resolveBlockAtPos(view.state, pos)
   );
 }
@@ -571,9 +577,6 @@ function resolveBlockAroundDom(
   for (const pos of probePositions) {
     if (pos < 0 || pos > view.state.doc.content.size) continue;
 
-    const imageBlock = resolveImageBlockAtDocPos(view.state, pos);
-    if (imageBlock) return imageBlock;
-
     const block = resolveBlockAtPos(view.state, pos);
     if (block) return block;
   }
@@ -581,20 +584,32 @@ function resolveBlockAroundDom(
   return null;
 }
 
-function resolveImageBlockAtDocPos(
+function resolveLeafBlockAtDocPos(
   state: EditorState,
   pos: number,
 ): ActiveBlock | null {
   const bounded = Math.max(0, Math.min(pos, state.doc.content.size));
-  const candidatePositions =
-    bounded > 0 ? [bounded, bounded - 1] : [bounded];
+  const candidatePositions = Array.from(
+    new Set([bounded, bounded - 1, bounded + 1]),
+  ).filter(
+    (candidatePos) =>
+      candidatePos >= 0 && candidatePos <= state.doc.content.size,
+  );
 
   for (const candidatePos of candidatePositions) {
     const node = state.doc.nodeAt(candidatePos);
-    if (node?.type.name !== "image-block") continue;
+    if (
+      node?.type.name !== "image-block" &&
+      node?.type.name !== "horizontal_rule"
+    ) {
+      continue;
+    }
 
     const block = buildActiveBlockAtResolvedPos(state.doc, candidatePos);
-    if (block?.typeName === "image-block") {
+    if (
+      block?.typeName === "image-block" ||
+      block?.typeName === "horizontal_rule"
+    ) {
       return block;
     }
   }
@@ -742,6 +757,8 @@ function findSemanticBlockElement(
   switch (typeName) {
     case "blockquote":
       return target.closest("blockquote");
+    case "horizontal_rule":
+      return target.closest("hr");
     case "list_item":
       return target.closest(".milkdown-list-item-block");
     case "table":
@@ -754,7 +771,13 @@ function findSemanticBlockElement(
 }
 
 function requiresOuterAnchor(typeName: string): boolean {
-  return typeName === "blockquote" || typeName === "list_item" || typeName === "table" || typeName === "image-block";
+  return (
+    typeName === "blockquote" ||
+    typeName === "horizontal_rule" ||
+    typeName === "list_item" ||
+    typeName === "table" ||
+    typeName === "image-block"
+  );
 }
 
 function getInsertPos(target: ActiveBlock, placement: BlockPlacement): number {

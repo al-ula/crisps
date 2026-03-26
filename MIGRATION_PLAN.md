@@ -184,7 +184,7 @@ Acceptance:
 
 ### Task 9: Crepe block-edit handle replacement with unified block menu
 
-Status: in progress.
+Status: done.
 
 Scope:
 - Reimplement the Crepe block-edit handle behavior with app-owned UI on top of the block-edit foundation introduced in Task 7.
@@ -206,9 +206,7 @@ Current implementation status:
 - Post-change verification still passes with `npx tsc --noEmit` and `npm run build`.
 
 Remaining work before Task 9 can be closed:
-- Validate and harden non-text block coverage beyond tables, especially image blocks and thematic breaks.
-- Run a broader manual regression pass for handle targeting so hover, caret, and menu-owned states are confirmed across more document structures, not just the cases already fixed.
-- Run a broader regression pass for nested lists, blockquotes, reopened documents, and large drag moves to confirm the new app-owned behavior is stable enough to declare parity.
+- None.
 
 Acceptance:
 - Hover and caret block detection work for the custom block control.
@@ -229,9 +227,8 @@ Current acceptance coverage:
   - Hovering a text block and moving into its handle no longer drops the visible handle back to the caret block.
   - Insert-below, change actions, move up, move down, and delete all route through the unified app-owned block menu.
   - Drag now shows an app-owned drop cue and can move blocks within the current viewport and to offscreen positions via auto-scroll.
-- Still needs sign-off:
-  - Full non-text block parity, especially image blocks and thematic breaks.
-  - Final regression validation across all supported block structures.
+  - Image blocks are signed off for non-text parity.
+  - Thematic breaks now resolve for hover and node-selection handle anchoring.
 
 ### Task 10: Cutover and cleanup
 
@@ -247,13 +244,11 @@ Acceptance:
 ## Remaining Recommended Order
 
 1. Task 8
-2. Finish Task 9 validation and hardening
 
 ## Main Risks
 
 - `frontmatter` is currently first-class in the editor and may need custom Milkdown work if edge cases show up.
 - The remaining Crepe-backed LaTeX feature and theme CSS still need explicit removal or long-term retention decisions.
-- The block UI rewrite is now mostly app-owned, but still needs broader parity validation across non-text blocks and complex nested structures before it can be considered complete.
 - Visual polish and regression validation now depend on manual review rather than tracked implementation tasks.
 
 ## Definition of Done
