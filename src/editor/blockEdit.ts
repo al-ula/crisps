@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import {
   Fragment,
+  type NodeType,
   type Node as ProseNode,
 } from "@milkdown/kit/prose/model";
 import {
@@ -375,6 +376,15 @@ export function moveBlockTo(
   const insertionContext = getInsertionContext(target, placement);
   if (!insertionContext || isTableContext(insertionContext.parent)) return false;
 
+  if (source.typeName === "list_item" && insertionContext.parent.type.name === "list_item") {
+    const nestedListMove = moveListItemToNestedList(state, source, target, placement);
+    if (!nestedListMove) return false;
+
+    view.dispatch(nestedListMove.scrollIntoView());
+    view.focus();
+    return true;
+  }
+
   const content = buildInsertContent(state.tr, source, insertionContext.parent, placement);
   if (!content) return false;
 
@@ -391,6 +401,79 @@ export function moveBlockTo(
   view.dispatch(next.scrollIntoView());
   view.focus();
   return true;
+}
+
+function moveListItemToNestedList(
+  state: EditorState,
+  source: ActiveBlock,
+  target: ActiveBlock,
+  placement: BlockPlacement,
+): Transaction | null {
+  if (!LIST_TYPES.has(source.parent.type.name)) return null;
+
+  const sourceFrom = source.pos;
+  const sourceTo = source.pos + source.node.nodeSize;
+  const nestedListType = source.parent.type;
+  const nestedListAttrs = source.parent.attrs;
+  const boundaryPos = getNestedListBoundaryPos(target, placement);
+  let next = state.tr.delete(sourceFrom, sourceTo);
+  const mappedBoundaryPos = next.mapping.map(boundaryPos, placement === "before" ? -1 : 1);
+  if (!isNestedListBoundary(next.doc, mappedBoundaryPos)) return null;
+
+  const insertedItemPos = insertListItemAtBoundary(
+    next,
+    mappedBoundaryPos,
+    source.node,
+    nestedListType,
+    nestedListAttrs,
+  );
+  if (insertedItemPos == null) return null;
+
+  return setBlockSelection(next, insertedItemPos, source.node);
+}
+
+function getNestedListBoundaryPos(
+  target: ActiveBlock,
+  placement: BlockPlacement,
+): number {
+  if (placement === "inside") {
+    return target.pos + target.node.nodeSize - 1;
+  }
+
+  return placement === "before"
+    ? target.pos
+    : target.pos + target.node.nodeSize;
+}
+
+function isNestedListBoundary(doc: ProseNode, pos: number): boolean {
+  const boundedPos = Math.max(0, Math.min(pos, doc.content.size));
+  return findDepth(doc.resolve(boundedPos), "list_item") > 0;
+}
+
+function insertListItemAtBoundary(
+  tr: Transaction,
+  boundaryPos: number,
+  item: ProseNode,
+  listType: NodeType,
+  listAttrs: Record<string, unknown>,
+): number | null {
+  const $boundary = tr.doc.resolve(boundaryPos);
+
+  if ($boundary.nodeBefore?.type === listType) {
+    const insertPos = boundaryPos - 1;
+    tr.insert(insertPos, item);
+    return insertPos;
+  }
+
+  if ($boundary.nodeAfter?.type === listType) {
+    const insertPos = boundaryPos + 1;
+    tr.insert(insertPos, item);
+    return insertPos;
+  }
+
+  const nestedList = listType.create(listAttrs, Fragment.from(item));
+  tr.insert(boundaryPos, nestedList);
+  return boundaryPos + 1;
 }
 
 export function moveActiveBlock(
@@ -676,6 +759,10 @@ function buildInsertContent(
   }
 
   if (source.typeName === "list_item") {
+    if (LIST_TYPES.has(source.parent.type.name)) {
+      return source.parent.type.create(source.parent.attrs, Fragment.from(source.node));
+    }
+
     return source.node.content;
   }
 
@@ -689,6 +776,11 @@ function setInsertedSelection(
 ): Transaction {
   const firstNode = content instanceof Fragment ? content.firstChild : content;
   if (!firstNode) return tr;
+
+  if (LIST_TYPES.has(firstNode.type.name) && firstNode.firstChild?.type.name === "list_item") {
+    return setBlockSelection(tr, pos + 1, firstNode.firstChild);
+  }
+
   return setBlockSelection(tr, pos, firstNode);
 }
 
