@@ -59,6 +59,8 @@ export function resolveBlockAtPos(
   state: EditorState,
   pos: number,
 ): ActiveBlock | null {
+  const imageBlock = resolveImageBlockAtDocPos(state, pos);
+  if (imageBlock) return imageBlock;
   return resolveBlockAtDocPos(state.doc, pos);
 }
 
@@ -545,7 +547,12 @@ function findBlockInsideElement(
     top: rect.top + Math.min(Math.max(1, rect.height / 2), rect.height - 1),
   });
   const pos = probe?.inside ?? probe?.pos;
-  return pos == null ? null : resolveBlockAtPos(view.state, pos);
+  if (pos == null) return null;
+
+  return (
+    resolveImageBlockAtDocPos(view.state, pos) ??
+    resolveBlockAtPos(view.state, pos)
+  );
 }
 
 function resolveBlockAroundDom(
@@ -564,21 +571,73 @@ function resolveBlockAroundDom(
   for (const pos of probePositions) {
     if (pos < 0 || pos > view.state.doc.content.size) continue;
 
-    const directNode = view.state.doc.nodeAt(pos);
-    if (directNode?.type.name === "image-block") {
-      return resolveBlockAtPos(view.state, Math.min(pos + 1, view.state.doc.content.size));
-    }
-
-    const previousNode = pos > 0 ? view.state.doc.nodeAt(pos - 1) : null;
-    if (previousNode?.type.name === "image-block") {
-      return resolveBlockAtPos(view.state, pos);
-    }
+    const imageBlock = resolveImageBlockAtDocPos(view.state, pos);
+    if (imageBlock) return imageBlock;
 
     const block = resolveBlockAtPos(view.state, pos);
     if (block) return block;
   }
 
   return null;
+}
+
+function resolveImageBlockAtDocPos(
+  state: EditorState,
+  pos: number,
+): ActiveBlock | null {
+  const bounded = Math.max(0, Math.min(pos, state.doc.content.size));
+  const candidatePositions =
+    bounded > 0 ? [bounded, bounded - 1] : [bounded];
+
+  for (const candidatePos of candidatePositions) {
+    const node = state.doc.nodeAt(candidatePos);
+    if (node?.type.name !== "image-block") continue;
+
+    const block = buildActiveBlockAtResolvedPos(state.doc, candidatePos);
+    if (block?.typeName === "image-block") {
+      return block;
+    }
+  }
+
+  return null;
+}
+
+function buildActiveBlockAtResolvedPos(
+  doc: ProseNode,
+  nodePos: number,
+): ActiveBlock | null {
+  let match: ActiveBlock | null = null;
+
+  const visit = (parent: ProseNode, parentPos: number, depth: number): boolean => {
+    let found = false;
+
+    parent.forEach((node, offset, index) => {
+      if (found) return;
+
+      const childPos = depth === 0 ? offset : parentPos + 1 + offset;
+      if (childPos === nodePos) {
+        match = {
+          depth: depth + 1,
+          index,
+          node,
+          parent,
+          pos: childPos,
+          typeName: node.type.name,
+        };
+        found = true;
+        return;
+      }
+
+      if (!node.isLeaf && nodePos > childPos && nodePos < childPos + node.nodeSize) {
+        found = visit(node, childPos, depth + 1);
+      }
+    });
+
+    return found;
+  };
+
+  visit(doc, 0, 0);
+  return match;
 }
 
 function findElementForBlock(
