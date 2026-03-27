@@ -37,15 +37,15 @@ export function LinkPopup({
   return (
     <form
       ref={popupRef}
-      className="link-popup"
+      className="fixed z-[1015] flex min-w-[min(24rem,calc(100vw-16px))] flex-col gap-2.5 max-sm:min-w-[min(20rem,calc(100vw-16px))]"
       style={style}
       onSubmit={handleSubmit}
     >
       {value.showName && (
-        <div className="link-popup-island">
+        <div className="card card-frosted p-2.5">
           <input
             ref={nameInputRef}
-            className="link-popup-input"
+            className="input input-ghost input-sm input-frosted w-full"
             value={value.name}
             placeholder="Link text"
             onChange={(event) => {
@@ -55,10 +55,10 @@ export function LinkPopup({
         </div>
       )}
 
-      <div className="link-popup-island link-popup-island-bottom">
+      <div className="card card-frosted bg-base-200/90 p-2.5">
         <input
           ref={hrefInputRef}
-          className="link-popup-input"
+          className="input input-ghost input-sm input-frosted w-full"
           value={value.href}
           placeholder="https://example.com"
           onChange={(event) => {

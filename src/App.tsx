@@ -123,7 +123,7 @@ function AppInner() {
 
   return (
     <div
-      className={`app-shell${showDockedSidebar ? " app-shell-sidebar-docked" : ""}`}
+      className={`relative h-full w-full overflow-hidden${showDockedSidebar ? " app-shell-sidebar-docked" : ""}`}
     >
       <div
         className="absolute left-0 top-4 bottom-4 w-1 z-[1040] cursor-ew-resize"
@@ -135,18 +135,25 @@ function AppInner() {
       />
       <FloatingBar />
       {showSidebar && (
-        <div className="app-sidebar-slot app-sidebar-slot-overlay">
+        <div className="pointer-events-none absolute left-0 top-0 z-[1025] min-h-0">
           <SidebarIsland mode={sidebarMode} />
         </div>
       )}
-      <div className="app-main">
+      <div className="relative flex h-full w-full min-w-0 bg-base-100">
         {showDockedSidebar && (
-          <div className="app-sidebar-spacer" aria-hidden="true" />
+          <div
+            className="min-h-0 bg-base-100"
+            style={{
+              flex: "0 0 var(--sidebar-footprint-docked)",
+              width: "var(--sidebar-footprint-docked)",
+            }}
+            aria-hidden="true"
+          />
         )}
-        <div className="app-editor-pane">
+        <div className="relative h-full min-w-0 flex-1 overflow-hidden">
           <div
             style={{ display: sourceMode ? "none" : undefined }}
-            className="editor-container"
+            className="editor-container relative h-full overflow-auto"
           >
             <EditorHost
               isDarkTheme={isDarkTheme}
@@ -155,7 +162,7 @@ function AppInner() {
             />
           </div>
           {sourceMode && (
-            <div className="editor-container source-mode">
+            <div className="editor-container source-mode relative h-full overflow-auto">
               <SourceEditor
                 value={sourceText}
                 onChange={updateSourceText}

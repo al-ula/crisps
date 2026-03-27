@@ -11,6 +11,7 @@ interface BlockHandleProps {
   containerRef: MutableRefObject<HTMLDivElement | null>;
   style: CSSProperties;
   visible: boolean;
+  menuDisabled: boolean;
   menuIcon: BlockMenuIcon;
   onOpenMenu: () => void;
   onMenuPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
@@ -24,6 +25,7 @@ export function BlockHandle({
   containerRef,
   style,
   visible,
+  menuDisabled,
   menuIcon,
   onOpenMenu,
   onMenuPointerDown,
@@ -32,21 +34,29 @@ export function BlockHandle({
   onDragStart,
   onDragEnd,
 }: BlockHandleProps) {
+  const ghostButtonClass =
+    "btn btn-ghost btn-xs btn-square btn-frosted block-handle-ghost-btn h-[26px] min-h-[26px] w-[26px]";
+  const menuButtonClass = menuDisabled
+    ? "btn btn-soft btn-active btn-xs btn-square btn-frosted btn-recessed btn-recessed-open h-[26px] min-h-[26px] w-[26px] opacity-100"
+    : ghostButtonClass;
+
   return (
     <div
       ref={(node) => {
         containerRef.current = node;
       }}
-      className={`block-side-controls${visible ? " is-visible" : ""}`}
+      className={`fixed z-[1000] transition-[opacity,transform] duration-100 ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
       style={style}
       onPointerEnter={onPointerEnter}
     >
-      <div className="block-handle-rail">
+      <div className="flex gap-1">
         <button
           type="button"
-          className="block-handle-btn"
+          className={menuButtonClass}
           aria-label="Block menu"
+          aria-disabled={menuDisabled}
           data-role="block-menu-trigger"
+          disabled={menuDisabled}
           onPointerDown={onMenuPointerDown}
           onPointerUp={(event) => {
             event.preventDefault();
@@ -58,7 +68,7 @@ export function BlockHandle({
         </button>
         <button
           type="button"
-          className="block-handle-btn"
+          className={ghostButtonClass}
           aria-label="Drag block"
           draggable
           onPointerDown={onDragPointerDown}

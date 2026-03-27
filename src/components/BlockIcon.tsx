@@ -38,14 +38,19 @@ export function getBlockIconForBlock(block: ActiveBlock | null): BlockMenuIcon {
 export function BlockIconRenderer({ icon }: { icon: BlockMenuIcon }) {
   if (icon.type === "text") {
     return (
-      <span className="block-popup-item-icon">
-        <span className="block-popup-item-icon-text">{icon.value}</span>
+      <span className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center text-current opacity-80">
+        <span className="block translate-y-[0.5px] font-mono text-[10px] leading-none font-semibold">
+          {icon.value}
+        </span>
       </span>
     );
   }
 
   return (
-    <span className="block-popup-item-icon" aria-hidden="true">
+    <span
+      className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center text-current opacity-80"
+      aria-hidden="true"
+    >
       {icon.name === "table" ? (
         <svg viewBox="0 0 24 24" width="16" height="16">
           <path

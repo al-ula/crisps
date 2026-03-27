@@ -1,5 +1,10 @@
 import type { CSSProperties, ReactNode, RefObject } from "react";
-import type { EditorAction, EditorBlockType, EditorStateSnapshot } from "../editor/types";
+import { FrostedDropdown } from "./FrostedDropdown";
+import type {
+  EditorAction,
+  EditorBlockType,
+  EditorStateSnapshot,
+} from "../editor/types";
 
 const BLOCK_TYPE_OPTIONS: Array<{
   value: EditorBlockType;
@@ -15,6 +20,9 @@ const BLOCK_TYPE_OPTIONS: Array<{
   { value: "quote", label: "Quote" },
 ];
 
+const TOOLBAR_BTN =
+  "btn btn-ghost btn-xs btn-square btn-frosted btn-recessed h-[26px] min-h-[26px] w-7";
+const TOOLBAR_BTN_ACTIVE = `${TOOLBAR_BTN} btn-active btn-recessed-open`;
 interface SelectionToolbarProps {
   editorState: EditorStateSnapshot;
   style: CSSProperties;
@@ -39,33 +47,27 @@ export function SelectionToolbar({
   return (
     <div
       ref={toolbarRef}
-      className="selection-format-popup"
+      className="card card-frosted fixed z-[1010] overflow-visible p-1"
       style={style}
       role="toolbar"
       aria-label="Selection formatting"
       onFocus={onRefreshPosition}
       onBlur={onRefreshPosition}
     >
-      <div className="selection-format-row">
-        <select
-          className="selection-format-select"
-          aria-label="Block type"
+      <div className="flex items-center gap-0.5">
+        <FrostedDropdown
           value={blockTypeValue}
-          onChange={(event) => {
-            void onAction({
+          items={BLOCK_TYPE_OPTIONS}
+          ariaLabel="Block type"
+          onSelect={(blockType) =>
+            onAction({
               action: "blockType",
-              blockType: event.target.value as EditorBlockType,
-            });
-          }}
-        >
-          {BLOCK_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+              blockType,
+            })
+          }
+        />
 
-        <span className="selection-format-sep" />
+        <span className="mx-[3px] h-4 w-px shrink-0 bg-base-content/10" />
 
         <FormatButton
           active={editorState.bold}
@@ -108,14 +110,20 @@ export function SelectionToolbar({
           {"</>"}
         </FormatButton>
 
-        <span className="selection-format-sep" />
+        <span className="mx-[3px] h-4 w-px shrink-0 bg-base-content/10" />
 
         <FormatButton
           label="Link"
           title="Link"
           onAction={() => onAction({ action: "createLink" })}
         >
-          <svg width="14" height="14" viewBox="0 0 192 192" fill="none" aria-hidden="true">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 192 192"
+            fill="none"
+            aria-hidden="true"
+          >
             <path
               d="M84 128.6H54.6C36.6 128.6 22 114 22 96c0-9 3.7-17.2 9.6-23.1 5.9-5.9 14.1-9.6 23.1-9.6H84m24 65.3h29.4c9 0 17.2-3.7 23.1-9.6 5.9-5.9 9.6-14.1 9.6-23.1 0-18-14.6-32.6-32.6-32.6H108M67.9 96h56.2"
               stroke="currentColor"
@@ -142,7 +150,7 @@ function FormatButton(props: {
   return (
     <button
       type="button"
-      className={`selection-format-btn${active ? " active" : ""}`}
+      className={active ? TOOLBAR_BTN_ACTIVE : TOOLBAR_BTN}
       aria-label={label}
       title={title}
       onMouseDown={(event) => {

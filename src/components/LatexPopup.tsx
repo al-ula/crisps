@@ -34,23 +34,25 @@ export function LatexPopup({
   return (
     <form
       ref={popupRef}
-      className="latex-popup"
+      className="fixed z-[1200] w-[min(320px,calc(100vw-16px))]"
       style={style}
       onSubmit={handleSubmit}
     >
-      <div className="latex-popup-island">
-        <input
-          ref={inputRef}
-          className="latex-popup-input"
-          value={value.value}
-          placeholder="x^2 + y^2"
-          onChange={(event) => {
-            onChange({ value: event.target.value });
-          }}
-        />
-        <button type="submit" className="latex-popup-submit">
-          Apply
-        </button>
+      <div className="card card-frosted p-2.5">
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            className="input input-ghost input-sm input-frosted flex-1"
+            value={value.value}
+            placeholder="x^2 + y^2"
+            onChange={(event) => {
+              onChange({ value: event.target.value });
+            }}
+          />
+          <button type="submit" className="btn btn-soft btn-xs btn-frosted btn-recessed">
+            Apply
+          </button>
+        </div>
       </div>
     </form>
   );

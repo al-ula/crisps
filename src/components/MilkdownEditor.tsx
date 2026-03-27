@@ -1042,12 +1042,15 @@ export function MilkdownEditor({
             <BlockHandle
               containerRef={blockHandleRef}
               style={handleStyle}
-              visible={editorVisible && !blockMenuState.visible && Boolean(
-                dragState?.target?.block ??
-                  dragState?.sourceBlock ??
-                  hoveredBlock ??
-                  (toolbarState.editorState.focused ? selectionBlock : null),
+              visible={editorVisible && Boolean(
+                blockMenuState.visible
+                  ? blockMenuState.activeBlock
+                  : (dragState?.target?.block ??
+                    dragState?.sourceBlock ??
+                    hoveredBlock ??
+                    (toolbarState.editorState.focused ? selectionBlock : null)),
               )}
+              menuDisabled={blockMenuState.visible}
               menuIcon={handleMenuIcon}
               onOpenMenu={openBlockMenu}
               onMenuPointerDown={(event) => {

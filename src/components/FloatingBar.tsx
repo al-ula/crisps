@@ -1,88 +1,115 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useFileContext } from "../context/FileContext";
 import type { EditorStateSnapshot } from "../editor/types";
+import {
+  CascadingMenu,
+  type CascadingMenuItem,
+  type CascadingMenuLayerProps,
+} from "./CascadingMenu";
 
+const TITLE_BADGE_CLASS =
+  "badge badge-frosted pointer-events-auto h-8 max-w-[min(50vw,24rem)] cursor-grab px-4 text-[12px] font-semibold tracking-[0.08em] text-base-content active:cursor-grabbing";
+const ISLAND_CLASS =
+  "card card-frosted pointer-events-auto overflow-visible px-1.5 py-1";
 const BASE_BTN =
-  "inline-flex items-center justify-center w-7 h-[22px] rounded-[var(--radius-selector)] border-0 text-base-content cursor-pointer select-none transition-[background,opacity] duration-100";
-
-const IDLE_BTN = `${BASE_BTN} opacity-60 hover:opacity-100 hover:bg-base-300`;
-const ACTIVE_BTN = `${BASE_BTN} opacity-100 bg-base-300`;
-const WINDOW_BTN = `${BASE_BTN} opacity-70 hover:opacity-100 hover:bg-base-300`;
+  "btn btn-ghost btn-xs btn-square btn-frosted btn-recessed h-[22px] min-h-[22px] w-7";
+const IDLE_BTN = `${BASE_BTN} opacity-70`;
+const ACTIVE_BTN = `${BASE_BTN} btn-active btn-recessed-open`;
+const WINDOW_BTN = `${BASE_BTN} opacity-80`;
+const MENU_LAYER_CLASS = "floating-bar-menu-layer overflow-visible";
+const MENU_LAYER_BASE_Z_INDEX = 1045;
 
 type MenuItem =
   | {
       type: "item";
+      key: string;
       label: string;
       shortcut?: string;
       action?: string;
       activeKey?: keyof EditorStateSnapshot;
     }
-  | { type: "submenu"; label: string; items: MenuItem[] }
-  | { type: "divider" };
+  | {
+      type: "submenu";
+      key: string;
+      label: string;
+      items: MenuItem[];
+    }
+  | { type: "divider"; key: string };
 
-type MenuSection = { label: string; items: MenuItem[] };
+type MenuSection = { key: string; label: string; items: MenuItem[] };
 
 const BLOCK_ITEMS: MenuItem[] = [
   {
     type: "item",
+    key: "paragraph",
     label: "Paragraph",
     action: "blockType:paragraph",
-    activeKey: undefined,
   },
-  { type: "item", label: "Heading 1", action: "blockType:h1" },
-  { type: "item", label: "Heading 2", action: "blockType:h2" },
-  { type: "item", label: "Heading 3", action: "blockType:h3" },
-  { type: "item", label: "Heading 4", action: "blockType:h4" },
-  { type: "item", label: "Heading 5", action: "blockType:h5" },
-  { type: "item", label: "Heading 6", action: "blockType:h6" },
-  { type: "divider" },
-  { type: "item", label: "Quote", action: "blockType:quote" },
-  { type: "divider" },
-  { type: "item", label: "Bullet List", action: "bulletList" },
-  { type: "item", label: "Ordered List", action: "orderedList" },
-  { type: "item", label: "Checklist", action: "checklist" },
-  { type: "item", label: "Remove List", action: "removeList" },
+  { type: "item", key: "heading-1", label: "Heading 1", action: "blockType:h1" },
+  { type: "item", key: "heading-2", label: "Heading 2", action: "blockType:h2" },
+  { type: "item", key: "heading-3", label: "Heading 3", action: "blockType:h3" },
+  { type: "item", key: "heading-4", label: "Heading 4", action: "blockType:h4" },
+  { type: "item", key: "heading-5", label: "Heading 5", action: "blockType:h5" },
+  { type: "item", key: "heading-6", label: "Heading 6", action: "blockType:h6" },
+  { type: "divider", key: "divider-headings" },
+  { type: "item", key: "quote", label: "Quote", action: "blockType:quote" },
+  { type: "divider", key: "divider-quote" },
+  { type: "item", key: "bullet-list", label: "Bullet List", action: "bulletList" },
+  {
+    type: "item",
+    key: "ordered-list",
+    label: "Ordered List",
+    action: "orderedList",
+  },
+  { type: "item", key: "checklist", label: "Checklist", action: "checklist" },
+  { type: "item", key: "remove-list", label: "Remove List", action: "removeList" },
 ];
 
 const MENU_SECTIONS: MenuSection[] = [
   {
+    key: "file",
     label: "File",
     items: [
-      { type: "item", label: "New", shortcut: "Ctrl+N", action: "new" },
-      { type: "item", label: "Open…", shortcut: "Ctrl+O", action: "open" },
-      { type: "item", label: "Save", shortcut: "Ctrl+S", action: "save" },
+      { type: "item", key: "new", label: "New", shortcut: "Ctrl+N", action: "new" },
+      { type: "item", key: "open", label: "Open…", shortcut: "Ctrl+O", action: "open" },
+      { type: "item", key: "save", label: "Save", shortcut: "Ctrl+S", action: "save" },
       {
         type: "item",
+        key: "save-as",
         label: "Save As…",
         shortcut: "Ctrl+Shift+S",
         action: "saveAs",
       },
-      { type: "divider" },
-      { type: "item", label: "Export as PDF" },
-      { type: "item", label: "Export as HTML" },
-      { type: "item", label: "Export as Markdown" },
-      { type: "divider" },
-      { type: "item", label: "Print…" },
+      { type: "divider", key: "divider-save" },
+      { type: "item", key: "export-pdf", label: "Export as PDF" },
+      { type: "item", key: "export-html", label: "Export as HTML" },
+      { type: "item", key: "export-markdown", label: "Export as Markdown" },
+      { type: "divider", key: "divider-export" },
+      { type: "item", key: "print", label: "Print…" },
     ],
   },
   {
+    key: "edit",
     label: "Edit",
     items: [
-      { type: "item", label: "Undo", shortcut: "Ctrl+Z", action: "undo" },
-      { type: "item", label: "Redo", shortcut: "Ctrl+Y", action: "redo" },
-      { type: "divider" },
-      { type: "item", label: "Find & Replace", shortcut: "Ctrl+F" },
-      { type: "divider" },
-      { type: "submenu", label: "Block", items: BLOCK_ITEMS },
+      { type: "item", key: "undo", label: "Undo", shortcut: "Ctrl+Z", action: "undo" },
+      { type: "item", key: "redo", label: "Redo", shortcut: "Ctrl+Y", action: "redo" },
+      { type: "divider", key: "divider-history" },
+      { type: "item", key: "find", label: "Find & Replace", shortcut: "Ctrl+F" },
+      { type: "divider", key: "divider-find" },
+      { type: "submenu", key: "block", label: "Block", items: BLOCK_ITEMS },
     ],
   },
   {
+    key: "format",
     label: "Format",
     items: [
       {
         type: "item",
+        key: "bold",
         label: "Bold",
         shortcut: "Ctrl+B",
         action: "bold",
@@ -90,6 +117,7 @@ const MENU_SECTIONS: MenuSection[] = [
       },
       {
         type: "item",
+        key: "italic",
         label: "Italic",
         shortcut: "Ctrl+I",
         action: "italic",
@@ -97,51 +125,77 @@ const MENU_SECTIONS: MenuSection[] = [
       },
       {
         type: "item",
+        key: "strikethrough",
         label: "Strikethrough",
         action: "strikethrough",
         activeKey: "strikethrough",
       },
-      { type: "item", label: "Inline Code", action: "code", activeKey: "code" },
-      { type: "divider" },
-      { type: "item", label: "Subscript", action: "subscript" },
-      { type: "item", label: "Superscript", action: "superscript" },
+      {
+        type: "item",
+        key: "inline-code",
+        label: "Inline Code",
+        action: "code",
+        activeKey: "code",
+      },
+      { type: "divider", key: "divider-inline" },
+      { type: "item", key: "subscript", label: "Subscript", action: "subscript" },
+      { type: "item", key: "superscript", label: "Superscript", action: "superscript" },
     ],
   },
   {
+    key: "insert",
     label: "Insert",
     items: [
-      { type: "item", label: "Image", action: "insertImage" },
-      { type: "item", label: "Table", action: "insertTable" },
-      { type: "item", label: "Code Block", action: "insertCodeBlock" },
-      { type: "item", label: "Link", action: "createLink" },
-      { type: "item", label: "Thematic Break", action: "insertThematicBreak" },
-      { type: "divider" },
-      { type: "item", label: "Frontmatter", action: "insertFrontmatter" },
+      { type: "item", key: "image", label: "Image", action: "insertImage" },
+      { type: "item", key: "table", label: "Table", action: "insertTable" },
+      {
+        type: "item",
+        key: "code-block",
+        label: "Code Block",
+        action: "insertCodeBlock",
+      },
+      { type: "item", key: "link", label: "Link", action: "createLink" },
+      {
+        type: "item",
+        key: "thematic-break",
+        label: "Thematic Break",
+        action: "insertThematicBreak",
+      },
+      { type: "divider", key: "divider-insert" },
+      {
+        type: "item",
+        key: "frontmatter",
+        label: "Frontmatter",
+        action: "insertFrontmatter",
+      },
     ],
   },
   {
+    key: "view",
     label: "View",
     items: [
-      { type: "item", label: "Toggle Sidebar", action: "toggle-sidebar" },
-      { type: "divider" },
-      { type: "item", label: "Source / Preview", action: "source-mode" },
+      { type: "item", key: "toggle-sidebar", label: "Toggle Sidebar", action: "toggle-sidebar" },
+      { type: "divider", key: "divider-sidebar" },
+      { type: "item", key: "source-mode", label: "Source / Preview", action: "source-mode" },
       {
         type: "submenu",
+        key: "theme",
         label: "Theme",
         items: [
-          { type: "item", label: "Auto", action: "theme:auto" },
-          { type: "item", label: "Light", action: "theme:light" },
-          { type: "item", label: "Dark", action: "theme:dark" },
+          { type: "item", key: "auto", label: "Auto", action: "theme:auto" },
+          { type: "item", key: "light", label: "Light", action: "theme:light" },
+          { type: "item", key: "dark", label: "Dark", action: "theme:dark" },
         ],
       },
-      { type: "item", label: "Zen Mode" },
+      { type: "item", key: "zen-mode", label: "Zen Mode" },
     ],
   },
   {
+    key: "help",
     label: "Help",
     items: [
-      { type: "item", label: "Keyboard Shortcuts" },
-      { type: "item", label: "About" },
+      { type: "item", key: "keyboard-shortcuts", label: "Keyboard Shortcuts" },
+      { type: "item", key: "about", label: "About" },
     ],
   },
 ];
@@ -190,15 +244,8 @@ export function FloatingBar() {
   } = useFileContext();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [mainPopupStyle, setMainPopupStyle] = useState<React.CSSProperties>({});
-  const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [submenuStyle, setSubmenuStyle] = useState<React.CSSProperties>({});
-  const [activeSubmenuItem, setActiveSubmenuItem] = useState<string | null>(
-    null,
-  );
-  const [subsubmenuStyle, setSubsubmenuStyle] = useState<React.CSSProperties>(
-    {},
-  );
+  const [mainPopupStyle, setMainPopupStyle] = useState<CSSProperties>({});
+  const [openPath, setOpenPath] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeSubmenuTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -213,7 +260,7 @@ export function FloatingBar() {
       if (!cancelled) setIsMaximized(maximized);
     };
 
-    syncMaximizedState();
+    void syncMaximizedState();
 
     currentWindow
       .onResized(() => {
@@ -252,47 +299,36 @@ export function FloatingBar() {
 
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setMenuOpen(false);
-        setActiveSection(null);
-        setActiveSubmenuItem(null);
+
+    const handler = (event: MouseEvent) => {
+      const target = event.target;
+      if (containerRef.current?.contains(target as Node)) return;
+      if (target instanceof Element && target.closest(".floating-bar-menu-layer")) {
+        return;
       }
+      closeMenu();
     };
+
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [menuOpen]);
 
-  function handleMenuButtonClick(e: React.MouseEvent<HTMLButtonElement>) {
+  function handleMenuButtonClick(event: ReactMouseEvent<HTMLButtonElement>) {
     if (menuOpen) {
-      setMenuOpen(false);
-      setActiveSection(null);
-      setActiveSubmenuItem(null);
-    } else {
-      const rect = e.currentTarget.getBoundingClientRect();
-      setMainPopupStyle({ top: rect.bottom + 4, left: rect.left });
-      setMenuOpen(true);
+      closeMenu();
+      return;
     }
-  }
 
-  function handleSectionEnter(
-    label: string,
-    e: React.MouseEvent<HTMLButtonElement>,
-  ) {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveSection(label);
-    setSubmenuStyle({ top: rect.top, left: rect.right + 4 });
-    setActiveSubmenuItem(null);
+    const rect = event.currentTarget.getBoundingClientRect();
+    setMainPopupStyle({ top: rect.bottom + 4, left: rect.left });
+    setOpenPath([]);
+    setMenuOpen(true);
   }
 
   function scheduleClose() {
+    cancelClose();
     closeTimer.current = setTimeout(() => {
-      setActiveSection(null);
-      setActiveSubmenuItem(null);
+      setOpenPath([]);
     }, 150);
   }
 
@@ -303,31 +339,18 @@ export function FloatingBar() {
     }
   }
 
-  function handleSubmenuItemEnter(
-    label: string,
-    e: React.MouseEvent<HTMLButtonElement>,
-  ) {
+  function scheduleCloseSubmenu() {
+    cancelCloseSubmenu();
+    closeSubmenuTimer.current = setTimeout(() => {
+      setOpenPath((current) => current.slice(0, 1));
+    }, 150);
+  }
+
+  function cancelCloseSubmenu() {
     if (closeSubmenuTimer.current) {
       clearTimeout(closeSubmenuTimer.current);
       closeSubmenuTimer.current = null;
     }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveSubmenuItem(label);
-    const spaceBelow = window.innerHeight - rect.top;
-    const style: React.CSSProperties = { left: rect.right + 4 };
-    if (spaceBelow < 320) {
-      style.bottom = window.innerHeight - rect.bottom;
-    } else {
-      style.top = rect.top;
-    }
-    setSubsubmenuStyle(style);
-  }
-
-  function handleNonSubmenuItemEnter() {
-    closeSubmenuTimer.current = setTimeout(
-      () => setActiveSubmenuItem(null),
-      150,
-    );
   }
 
   async function handleMinimize() {
@@ -342,13 +365,6 @@ export function FloatingBar() {
 
   async function handleClose() {
     await getCurrentWindow().close();
-  }
-
-  function cancelCloseSubmenu() {
-    if (closeSubmenuTimer.current) {
-      clearTimeout(closeSubmenuTimer.current);
-      closeSubmenuTimer.current = null;
-    }
   }
 
   function isItemEnabled(item: MenuItem): boolean {
@@ -376,13 +392,19 @@ export function FloatingBar() {
     return false;
   }
 
+  function isSectionEnabled(section: MenuSection): boolean {
+    return section.items.some((item) =>
+      item.type === "submenu" ? true : isItemEnabled(item),
+    );
+  }
+
   function isItemActive(item: MenuItem): boolean {
     if (item.type !== "item") return false;
     const { action, activeKey } = item;
     if (activeKey && editorState[activeKey] === true) return true;
     if (action?.startsWith("blockType:")) {
-      const bt = action.split(":")[1];
-      return editorState.blockType === bt && !editorState.listType;
+      const blockType = action.split(":")[1];
+      return editorState.blockType === blockType && !editorState.listType;
     }
     if (action === "bulletList") return editorState.listType === "bullet";
     if (action === "orderedList") return editorState.listType === "number";
@@ -394,14 +416,16 @@ export function FloatingBar() {
   }
 
   function closeMenu() {
+    cancelClose();
+    cancelCloseSubmenu();
     setMenuOpen(false);
-    setActiveSection(null);
-    setActiveSubmenuItem(null);
+    setOpenPath([]);
   }
 
   function handleMenuItemClick(action: string | undefined) {
     closeMenu();
     if (!action) return;
+
     switch (action) {
       case "new":
         handleNew();
@@ -431,12 +455,14 @@ export function FloatingBar() {
         setThemeMode("dark");
         return;
     }
+
     if (action === "undo" || action === "redo") {
       void handleEditorAction({
         action: action as "undo" | "redo",
       });
       return;
     }
+
     if (action.startsWith("blockType:")) {
       const blockType = action.split(":")[1];
       void handleEditorAction({
@@ -451,88 +477,85 @@ export function FloatingBar() {
           | "h5"
           | "h6",
       });
-    } else if (action === "insertTable") {
-      void handleEditorAction({ action: "insertTable", rows: 3, columns: 3 });
-    } else {
-      void handleEditorAction({
-        action: action as Parameters<typeof handleEditorAction>[0]["action"],
-      });
+      return;
     }
+
+    if (action === "insertTable") {
+      void handleEditorAction({ action: "insertTable", rows: 3, columns: 3 });
+      return;
+    }
+
+    void handleEditorAction({
+      action: action as Parameters<typeof handleEditorAction>[0]["action"],
+    });
   }
 
-  const activeSectionData = MENU_SECTIONS.find(
-    (s) => s.label === activeSection,
-  );
-  const activeSubmenuData = activeSectionData?.items.find(
-    (it) => it.type === "submenu" && it.label === activeSubmenuItem,
-  ) as Extract<MenuItem, { type: "submenu" }> | undefined;
+  const menuItems: CascadingMenuItem[] = MENU_SECTIONS.map((section) => ({
+    type: "submenu",
+    key: section.key,
+    label: section.label,
+    items: buildSectionMenuItems(
+      section.items,
+      isItemEnabled,
+      isItemActive,
+      handleMenuItemClick,
+      cancelCloseSubmenu,
+      scheduleCloseSubmenu,
+    ),
+    disabled: !isSectionEnabled(section),
+    onMouseEnter: () => {
+      cancelClose();
+      cancelCloseSubmenu();
+    },
+    openOnClick: false,
+  }));
+
+  const getLayerProps = (depth: number): CascadingMenuLayerProps => {
+    if (depth === 0) {
+      return {
+        className: MENU_LAYER_CLASS,
+        minWidth: 120,
+        style: { zIndex: MENU_LAYER_BASE_Z_INDEX + depth },
+        onMouseLeave: scheduleClose,
+      };
+    }
+
+    if (depth === 1) {
+      return {
+        className: MENU_LAYER_CLASS,
+        minWidth: 200,
+        style: { zIndex: MENU_LAYER_BASE_Z_INDEX + depth },
+        onMouseEnter: cancelClose,
+        onMouseLeave: scheduleClose,
+      };
+    }
+
+    return {
+      className: MENU_LAYER_CLASS,
+      minWidth: 160,
+      style: { zIndex: MENU_LAYER_BASE_Z_INDEX + depth },
+      onMouseEnter: () => {
+        cancelClose();
+        cancelCloseSubmenu();
+      },
+      onMouseLeave: scheduleCloseSubmenu,
+    };
+  };
+
   const titleName = fileState.currentPath
     ? (fileState.currentPath.split(/[\\/]/).pop() ?? "Untitled")
     : "Untitled";
   const titleLabel = `${fileState.isDirty ? "• " : ""}${titleName}`;
 
-  function renderItem(item: MenuItem, i: number, inSubsub = false) {
-    if (item.type === "divider") {
-      return (
-        <div
-          key={i}
-          style={{
-            height: 1,
-            background: "var(--color-base-300)",
-            margin: "3px 0",
-          }}
-        />
-      );
-    }
-    if (item.type === "submenu") {
-      const isOpen = activeSubmenuItem === item.label;
-      return (
-        <button
-          key={i}
-          className="block-popup-item block-popup-item-submenu"
-          style={isOpen ? { background: "var(--color-base-200)" } : undefined}
-          onMouseEnter={(e) => handleSubmenuItemEnter(item.label, e)}
-        >
-          <span>{item.label}</span>
-          <span className="block-popup-arrow">›</span>
-        </button>
-      );
-    }
-    const enabled = isItemEnabled(item);
-    const active = isItemActive(item);
-    return (
-      <button
-        key={i}
-        className="block-popup-item block-popup-item-submenu"
-        disabled={!enabled}
-        style={{
-          opacity: enabled ? 1 : 0.4,
-          cursor: enabled ? "pointer" : "default",
-        }}
-        onMouseEnter={!inSubsub ? handleNonSubmenuItemEnter : undefined}
-        onClick={() => handleMenuItemClick(item.action)}
-      >
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 12, fontSize: 11, flexShrink: 0 }}>
-            {active ? "✓" : ""}
-          </span>
-          {item.label}
-        </span>
-        {item.shortcut && (
-          <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "monospace" }}>
-            {item.shortcut}
-          </span>
-        )}
-      </button>
-    );
-  }
-
   return (
     <div className="absolute inset-x-0 top-0 z-[1030] flex h-11 items-start justify-between px-3 pt-1.5">
-      <div className="absolute inset-0" data-tauri-drag-region />
+      <div
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        data-tauri-drag-region
+      />
       <div className="pointer-events-none absolute left-1/2 top-1.5 z-10 -translate-x-1/2">
         <div
-          className="pointer-events-auto flex h-8 max-w-[min(50vw,24rem)] items-center justify-center rounded-[var(--radius-box)] bg-base-200/75 px-4 text-[12px] font-semibold tracking-[0.08em] text-base-content/90 shadow-sm backdrop-blur-sm"
+          className={TITLE_BADGE_CLASS}
           data-tauri-drag-region
           title={titleLabel}
         >
@@ -540,144 +563,79 @@ export function FloatingBar() {
         </div>
       </div>
 
-        <div
-          ref={containerRef}
-          className="pointer-events-auto relative z-10 flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--radius-box)] px-1.5 py-1 shadow-sm"
-        >
-          {/* Sidebar toggle */}
-          <button
-            className={sidebarOpen ? ACTIVE_BTN : IDLE_BTN}
-            aria-label="Toggle Sidebar"
-            aria-pressed={sidebarOpen}
-            onClick={toggleSidebar}
-          >
-            {sidebarOpen ? (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <line x1="9" y1="3" x2="9" y2="21" />
-                <path d="M17 16l-4-4 4-4" />
-              </svg>
-            ) : (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <line x1="9" y1="3" x2="9" y2="21" />
-                <path d="M13 8l4 4-4 4" />
-              </svg>
-            )}
-          </button>
-          <span className="w-px h-3.5 bg-base-300 mx-[3px] shrink-0" />
-
-          {/* Menu button */}
-          <button
-            className={menuOpen ? ACTIVE_BTN : IDLE_BTN}
-            aria-label="Menu"
-            aria-expanded={menuOpen}
-            onClick={handleMenuButtonClick}
-          >
-            <svg width="14" height="4" viewBox="0 0 14 4">
-              <circle cx="2" cy="2" r="1.5" fill="currentColor" />
-              <circle cx="7" cy="2" r="1.5" fill="currentColor" />
-              <circle cx="12" cy="2" r="1.5" fill="currentColor" />
-            </svg>
-          </button>
-
-          {/* Main dropdown — section list */}
-          {menuOpen && (
-            <div
-              className="block-handle-popup"
-              style={{
-                ...mainPopupStyle,
-                position: "fixed",
-                overflow: "visible",
-                minWidth: 120,
-                zIndex: 1020,
-              }}
-              onMouseLeave={scheduleClose}
+      <div
+        ref={containerRef}
+        className="pointer-events-auto relative z-10 flex items-center gap-2"
+      >
+        <div className={ISLAND_CLASS}>
+          <div className="flex items-center gap-px">
+            <button
+              className={sidebarOpen ? ACTIVE_BTN : IDLE_BTN}
+              aria-label="Toggle Sidebar"
+              aria-pressed={sidebarOpen}
+              onClick={toggleSidebar}
             >
-              {MENU_SECTIONS.map((section) => (
-                <button
-                  key={section.label}
-                  className="block-popup-item block-popup-item-submenu"
-                  style={
-                    activeSection === section.label
-                      ? { background: "var(--color-base-200)" }
-                      : undefined
-                  }
-                  onMouseEnter={(e) => handleSectionEnter(section.label, e)}
+              {sidebarOpen ? (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <span>{section.label}</span>
-                  <span className="block-popup-arrow">›</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Level-2: section items */}
-          {menuOpen && activeSectionData && (
-            <div
-              className="block-handle-popup"
-              style={{
-                ...submenuStyle,
-                position: "fixed",
-                minWidth: 200,
-                zIndex: 1020,
-              }}
-              onMouseEnter={cancelClose}
-              onMouseLeave={scheduleClose}
-            >
-              {activeSectionData.items.map((item, i) => renderItem(item, i))}
-            </div>
-          )}
-
-          {/* Level-3: nested submenu (Block) */}
-          {menuOpen && activeSubmenuData && (
-            <div
-              className="block-handle-popup"
-              style={{
-                ...subsubmenuStyle,
-                position: "fixed",
-                minWidth: 160,
-                zIndex: 1020,
-              }}
-              onMouseEnter={() => {
-                cancelClose();
-                cancelCloseSubmenu();
-              }}
-              onMouseLeave={() => {
-                closeSubmenuTimer.current = setTimeout(
-                  () => setActiveSubmenuItem(null),
-                  150,
-                );
-              }}
-            >
-              {activeSubmenuData.items.map((item, i) =>
-                renderItem(item, i, true),
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <path d="M17 16l-4-4 4-4" />
+                </svg>
+              ) : (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                  <path d="M13 8l4 4-4 4" />
+                </svg>
               )}
-            </div>
-          )}
-        </div>
+            </button>
+            <span className="mx-[3px] h-3.5 w-px shrink-0 bg-base-content/10" />
+            <button
+              className={menuOpen ? ACTIVE_BTN : IDLE_BTN}
+              aria-label="Menu"
+              aria-expanded={menuOpen}
+              onClick={handleMenuButtonClick}
+            >
+              <svg width="14" height="4" viewBox="0 0 14 4">
+                <circle cx="2" cy="2" r="1.5" fill="currentColor" />
+                <circle cx="7" cy="2" r="1.5" fill="currentColor" />
+                <circle cx="12" cy="2" r="1.5" fill="currentColor" />
+              </svg>
+            </button>
+          </div>
 
-        <div className="relative z-10 flex items-start gap-2">
-          {/* Source mode island */}
-          <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--radius-box)] px-1.5 py-1 shadow-sm">
+          <CascadingMenu
+            visible={menuOpen}
+            items={menuItems}
+            openPath={openPath}
+            onOpenPathChange={setOpenPath}
+            rootStyle={mainPopupStyle}
+            getLayerProps={getLayerProps}
+          />
+        </div>
+      </div>
+
+      <div className="relative z-10 flex items-start gap-2">
+        <div className={ISLAND_CLASS}>
+          <div className="flex items-center gap-px">
             <button
               className={sourceMode ? ACTIVE_BTN : IDLE_BTN}
               aria-label="Toggle source mode"
@@ -685,12 +643,7 @@ export function FloatingBar() {
               onClick={toggleSourceMode}
               title="Source mode"
             >
-              <svg
-                width="16"
-                height="10"
-                viewBox="0 0 16 10"
-                fill="none"
-              >
+              <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
                 <path
                   d="M5 1L1 5l4 4"
                   stroke="currentColor"
@@ -717,7 +670,10 @@ export function FloatingBar() {
               </svg>
             </button>
           </div>
-          <div className="pointer-events-auto flex items-center gap-px bg-base-200/80 backdrop-blur-sm rounded-[var(--radius-box)] px-1.5 py-1 shadow-sm">
+        </div>
+
+        <div className={ISLAND_CLASS}>
+          <div className="flex items-center gap-px">
             <button
               className={WINDOW_BTN}
               aria-label="Minimize window"
@@ -818,7 +774,76 @@ export function FloatingBar() {
               </svg>
             </button>
           </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+function buildSectionMenuItems(
+  items: MenuItem[],
+  isItemEnabled: (item: MenuItem) => boolean,
+  isItemActive: (item: MenuItem) => boolean,
+  onItemClick: (action: string | undefined) => void,
+  cancelCloseSubmenu: () => void,
+  scheduleCloseSubmenu: () => void,
+  depth = 1,
+): CascadingMenuItem[] {
+  return items.map((item) => {
+    if (item.type === "divider") {
+      return {
+        type: "divider",
+        key: item.key,
+      };
+    }
+
+    if (item.type === "submenu") {
+      return {
+        type: "submenu",
+        key: item.key,
+        label: item.label,
+        leading: renderMenuCheckmark(false),
+        items: buildSectionMenuItems(
+          item.items,
+          isItemEnabled,
+          isItemActive,
+          onItemClick,
+          cancelCloseSubmenu,
+          scheduleCloseSubmenu,
+          depth + 1,
+        ),
+        disabled: !isItemEnabled(item),
+        onMouseEnter: cancelCloseSubmenu,
+        openOnClick: false,
+      };
+    }
+
+    const active = isItemActive(item);
+    return {
+      type: "item",
+      key: item.key,
+      label: item.label,
+      leading: renderMenuCheckmark(active),
+      trailing: item.shortcut ? (
+        <span className="font-mono text-[11px] text-base-content/60">
+          {item.shortcut}
+        </span>
+      ) : undefined,
+      active,
+      disabled: !isItemEnabled(item),
+      onMouseEnter: depth === 1 ? scheduleCloseSubmenu : undefined,
+      onClick: () => onItemClick(item.action),
+    };
+  });
+}
+
+function renderMenuCheckmark(active: boolean) {
+  return (
+    <span
+      className={`w-3 shrink-0 text-right text-[11px] ${active ? "opacity-70" : "opacity-0"}`}
+      aria-hidden="true"
+    >
+      {active ? "✓" : ""}
+    </span>
   );
 }
