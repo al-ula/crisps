@@ -50,6 +50,19 @@ export interface EditorStateSnapshot {
   focused: boolean;
 }
 
+export type SourceEditorAction = "undo" | "redo";
+
+export interface SourceEditorStateSnapshot {
+  canUndo: boolean;
+  canRedo: boolean;
+  focused: boolean;
+}
+
+export interface SourceEditorController {
+  focus: () => void;
+  runAction: (action: SourceEditorAction) => void;
+}
+
 export interface EditorAdapter {
   setMarkdown: (markdown: string) => void;
   getMarkdown: () => string;
@@ -70,5 +83,11 @@ export const EMPTY_EDITOR_STATE: EditorStateSnapshot = {
   code: false,
   blockType: "paragraph",
   listType: "",
+  focused: false,
+};
+
+export const EMPTY_SOURCE_EDITOR_STATE: SourceEditorStateSnapshot = {
+  canUndo: false,
+  canRedo: false,
   focused: false,
 };

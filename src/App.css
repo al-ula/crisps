@@ -350,6 +350,38 @@ body {
     color: var(--color-base-content);
 }
 
+.editor-container.source-mode {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    padding: 0.5rem;
+    box-sizing: border-box;
+}
+
+.editor-container.source-mode .source-editor-host {
+    width: 100%;
+    height: 100%;
+    margin: 0.5rem;
+}
+
+.editor-container.source-mode > .cm-editor,
+.editor-container.source-mode .source-editor-host > .cm-editor {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    background-color: var(--color-base-100);
+    color: var(--color-base-content);
+}
+
+.editor-container.source-mode .source-editor-host {
+    margin: 0;
+}
+
+.editor-container.source-mode .cm-scroller,
+.editor-container.source-mode .cm-gutters {
+    background-color: transparent;
+}
+
 .editor-container > .cm-editor .cm-gutters {
     background-color: var(--color-base-300);
     border-right-color: var(--color-codemirror-gutter-border);
@@ -376,24 +408,54 @@ body {
     background-color: var(--color-codemirror-selection-focus) !important;
 }
 
-/* Source mode textarea */
-.source-mode-editor {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    resize: none;
-    border: none;
-    outline: none;
-    background: var(--color-base-100);
-    color: var(--color-base-content);
+.editor-container.source-mode > .cm-editor.cm-focused,
+.editor-container.source-mode .source-editor-host > .cm-editor.cm-focused {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.editor-container.source-mode .cm-scroller {
+    overflow: auto;
+    margin-right: -0.5rem;
+    padding-right: 0.5rem;
+}
+
+.editor-container.source-mode .cm-content {
+    min-height: 100%;
+    box-sizing: border-box;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 3rem;
+    padding-bottom: 2rem;
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.875rem;
     line-height: 1.6;
-    padding: 3rem 2rem 2rem;
-    box-sizing: border-box;
-    border-radius: inherit;
+}
+
+.editor-container.source-mode .cm-line {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.editor-container.source-mode .cm-lineNumbers {
+    min-width: 3rem;
+}
+
+.editor-container.source-mode .cm-gutter {
+    min-width: 3rem;
+}
+
+.editor-container.source-mode .cm-gutterElement {
+    padding-right: 6px;
+}
+
+.editor-container.source-mode .cm-gutters {
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
 }
 
 .sidebar-island {
@@ -548,14 +610,16 @@ body {
 }
 
 @media (max-width: 1179px) {
-    .app-shell-sidebar-docked .source-mode-editor {
-        padding: 3rem 1.5rem 2rem;
+    .app-shell-sidebar-docked .editor-container.source-mode .cm-content {
+        padding-top: 3rem;
+        padding-bottom: 2rem;
     }
 }
 
 @media (max-width: 860px) {
-    .app-shell-sidebar-docked .source-mode-editor {
-        padding: 2.75rem 1.1rem 1.75rem;
+    .app-shell-sidebar-docked .editor-container.source-mode .cm-content {
+        padding-top: 2.75rem;
+        padding-bottom: 1.75rem;
     }
 }
 

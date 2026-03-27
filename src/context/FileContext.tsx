@@ -10,10 +10,13 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import {
+  EMPTY_SOURCE_EDITOR_STATE,
   EMPTY_EDITOR_STATE,
   type EditorAction,
   type EditorAdapter,
   type EditorStateSnapshot,
+  type SourceEditorController,
+  type SourceEditorStateSnapshot,
 } from "../editor/types";
 
 interface FileState {
@@ -47,6 +50,9 @@ interface FileContextValue {
   themeMode: "auto" | "light" | "dark";
   isDarkTheme: boolean;
   setEditorAdapter: (adapter: EditorAdapter | null) => void;
+  registerSourceEditor: (controller: SourceEditorController | null) => void;
+  updateSourceEditorState: (state: SourceEditorStateSnapshot) => void;
+  sourceEditorState: SourceEditorStateSnapshot;
   sourceMode: boolean;
   sourceText: string;
   updateSourceText: (text: string) => void;
@@ -77,6 +83,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     isDirty: false,
   });
   const editorAdapterRef = useRef<EditorAdapter | null>(null);
+  const sourceEditorRef = useRef<SourceEditorController | null>(null);
   const editorSubscriptionRef = useRef<(() => void) | null>(null);
   const adapterVersionRef = useRef(0);
   const systemThemeMediaRef = useRef<MediaQueryList | null>(null);
@@ -86,6 +93,9 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     );
   }
   const [editorState, setEditorState] = useState(EMPTY_EDITOR_STATE);
+  const [sourceEditorState, setSourceEditorState] = useState(
+    EMPTY_SOURCE_EDITOR_STATE,
+  );
   const [themeMode, setThemeMode] = useState<"auto" | "light" | "dark">(
     "light",
   );
@@ -110,6 +120,23 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       setDirtyState(markdown);
     },
     [setDirtyState],
+  );
+
+  const registerSourceEditor = useCallback(
+    (controller: SourceEditorController | null) => {
+      sourceEditorRef.current = controller;
+      if (!controller) {
+        setSourceEditorState(EMPTY_SOURCE_EDITOR_STATE);
+      }
+    },
+    [],
+  );
+
+  const updateSourceEditorState = useCallback(
+    (state: SourceEditorStateSnapshot) => {
+      setSourceEditorState(state);
+    },
+    [],
   );
 
   const setEditorAdapter = useCallback((adapter: EditorAdapter | null) => {
@@ -187,8 +214,12 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       currentContentRef.current = content;
       savedContentRef.current = content;
       editorAdapterRef.current?.setMarkdown(content);
-      editorAdapterRef.current?.focus();
       setSourceText(content);
+      if (sourceMode) {
+        sourceEditorRef.current?.focus();
+      } else {
+        editorAdapterRef.current?.focus();
+      }
       if (path) {
         dispatch({ type: "SET_PATH", path });
       } else {
@@ -196,7 +227,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       }
       handleEditorChange(content);
     },
-    [handleEditorChange],
+    [handleEditorChange, sourceMode],
   );
 
   function updateSourceText(text: string) {
@@ -222,9 +253,28 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const handleEditorAction = useCallback(async (action: EditorAction) => {
-    await editorAdapterRef.current?.runAction(action);
-  }, []);
+  const handleEditorAction = useCallback(
+    async (action: EditorAction) => {
+      if (sourceMode) {
+        if (action.action === "undo" || action.action === "redo") {
+          sourceEditorRef.current?.runAction(action.action);
+        }
+        return;
+      }
+
+      await editorAdapterRef.current?.runAction(action);
+    },
+    [sourceMode],
+  );
+
+  const activeEditorState = sourceMode
+    ? {
+        ...EMPTY_EDITOR_STATE,
+        canUndo: sourceEditorState.canUndo,
+        canRedo: sourceEditorState.canRedo,
+        focused: sourceEditorState.focused,
+      }
+    : editorState;
 
   async function guardUnsaved(): Promise<boolean> {
     if (!fileState.isDirty) return true;
@@ -271,10 +321,13 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       value={{
         fileState,
         dispatch,
-        editorState,
+        editorState: activeEditorState,
         themeMode,
         isDarkTheme,
         setEditorAdapter,
+        registerSourceEditor,
+        updateSourceEditorState,
+        sourceEditorState,
         sourceMode,
         sourceText,
         updateSourceText,

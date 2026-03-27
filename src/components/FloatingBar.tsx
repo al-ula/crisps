@@ -358,9 +358,7 @@ export function FloatingBar() {
     if (!action) return false;
     if (
       sourceMode &&
-      (action === "undo" ||
-        action === "redo" ||
-        FORMAT_ACTIONS.has(action) ||
+      (FORMAT_ACTIONS.has(action) ||
         LIST_ACTIONS.has(action) ||
         INSERT_ACTIONS.has(action) ||
         action.startsWith("blockType:"))
@@ -432,6 +430,12 @@ export function FloatingBar() {
       case "theme:dark":
         setThemeMode("dark");
         return;
+    }
+    if (action === "undo" || action === "redo") {
+      void handleEditorAction({
+        action: action as "undo" | "redo",
+      });
+      return;
     }
     if (action.startsWith("blockType:")) {
       const blockType = action.split(":")[1];

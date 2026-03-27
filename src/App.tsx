@@ -3,6 +3,7 @@ import "./App.css";
 import { EditorHost } from "./components/EditorHost";
 import { FloatingBar } from "./components/FloatingBar";
 import { SidebarIsland } from "./components/SidebarIsland";
+import { SourceEditor } from "./components/SourceEditor";
 import { FileProvider, useFileContext } from "./context/FileContext";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -28,6 +29,8 @@ function AppInner() {
     sourceMode,
     sourceText,
     updateSourceText,
+    registerSourceEditor,
+    updateSourceEditorState,
     sidebarOpen,
     isDarkTheme,
   } = useFileContext();
@@ -152,15 +155,16 @@ function AppInner() {
             />
           </div>
           {sourceMode && (
-            <textarea
-              className="source-mode-editor"
-              value={sourceText}
-              onChange={(e) => {
-                updateSourceText(e.target.value);
-              }}
-              spellCheck={false}
-              autoFocus
-            />
+            <div className="editor-container source-mode">
+              <SourceEditor
+                value={sourceText}
+                onChange={updateSourceText}
+                onReady={registerSourceEditor}
+                onStateChange={updateSourceEditorState}
+                isDarkTheme={isDarkTheme}
+                autoFocus
+              />
+            </div>
           )}
         </div>
       </div>
