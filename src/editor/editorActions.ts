@@ -39,6 +39,12 @@ import { joinFrontmatter } from "./frontmatter";
 import type { MilkdownRuntime } from "./milkdownRuntime";
 import type { EditorAction } from "./types";
 
+export interface EditorImageValue {
+  src: string;
+  alt?: string;
+  title?: string;
+}
+
 interface RunEditorActionOptions {
   runtime: MilkdownRuntime;
   action: EditorAction;
@@ -46,11 +52,8 @@ interface RunEditorActionOptions {
   onChange: (markdown: string) => void;
   openLinkPopup: (view: EditorView) => void;
   openLatexPopup: (view: EditorView) => void;
-  image?: {
-    src: string;
-    alt?: string;
-    title?: string;
-  };
+  promptForImage: () => Promise<EditorImageValue | undefined>;
+  image?: EditorImageValue;
 }
 
 export async function runEditorAction({
@@ -60,6 +63,7 @@ export async function runEditorAction({
   onChange,
   openLinkPopup,
   openLatexPopup,
+  promptForImage,
   image,
 }: RunEditorActionOptions) {
   switch (action.action) {
@@ -213,7 +217,7 @@ export async function runEditorAction({
   }
 }
 
-interface BlockMenuActionOptions {
+interface BaseBlockMenuActionOptions {
   runtime: MilkdownRuntime;
   key: BlockMenuItemKey;
   activeBlock: ActiveBlock;
@@ -221,6 +225,10 @@ interface BlockMenuActionOptions {
   onChange: (markdown: string) => void;
   openLinkPopup: (view: EditorView) => void;
   openLatexPopup: (view: EditorView) => void;
+}
+
+interface AddBlockMenuActionOptions extends BaseBlockMenuActionOptions {
+  promptForImage: () => Promise<EditorImageValue | undefined>;
 }
 
 export async function runAddBlockAction({
@@ -231,7 +239,8 @@ export async function runAddBlockAction({
   onChange,
   openLinkPopup,
   openLatexPopup,
-}: BlockMenuActionOptions) {
+  promptForImage,
+}: AddBlockMenuActionOptions) {
   if (key === "add:image") {
     const image = await promptForImage();
     if (!image) return;
@@ -243,6 +252,7 @@ export async function runAddBlockAction({
       onChange,
       openLinkPopup,
       openLatexPopup,
+      promptForImage,
       image,
     });
     return;
@@ -256,6 +266,7 @@ export async function runAddBlockAction({
     onChange,
     openLinkPopup,
     openLatexPopup,
+    promptForImage,
   });
 }
 
@@ -263,7 +274,7 @@ export async function runChangeBlockAction({
   runtime,
   key,
   activeBlock,
-}: BlockMenuActionOptions) {
+}: BaseBlockMenuActionOptions) {
   runtime.action((ctx) => {
     const view = ctx.get(editorViewCtx);
     focusBlock(view, activeBlock);
@@ -448,52 +459,4 @@ export function liftSelectionOutOfBlockquote(
 
   view.dispatch(state.tr.lift(range, target).scrollIntoView());
   return true;
-}
-
-async function promptForImage(): Promise<
-  | {
-      src: string;
-      alt?: string;
-      title?: string;
-    }
-  | undefined
-> {
-  const src = window.prompt("Image URL. Leave blank to upload a file.");
-  if (src === null) return undefined;
-  if (src.trim()) {
-    return { src: src.trim() };
-  }
-
-  const file = await pickImageFile();
-  if (!file) return undefined;
-  return {
-    src: await readFileAsDataUrl(file),
-    alt: file.name,
-  };
-}
-
-function pickImageFile(): Promise<File | undefined> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.addEventListener("cancel", () => {
-      resolve(undefined);
-      input.remove();
-    });
-    input.onchange = () => {
-      resolve(input.files?.[0]);
-      input.remove();
-    };
-    input.click();
-  });
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }

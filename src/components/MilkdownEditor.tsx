@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { open } from "@tauri-apps/plugin-dialog";
 import "../editor/milkdownTheme.css";
 import { editorViewCtx } from "@milkdown/kit/core";
 import { undoDepth, redoDepth } from "@milkdown/kit/prose/history";
@@ -35,6 +36,7 @@ import {
   type BlockDropTarget,
 } from "../editor/blockEdit";
 import {
+  type EditorImageValue,
   runAddBlockAction,
   runChangeBlockAction,
   runEditorAction,
@@ -55,6 +57,7 @@ import type {
 import { BlockHandle } from "./BlockHandle";
 import { getBlockIconForBlock } from "./BlockIcon";
 import { BlockMenu } from "./BlockMenu";
+import { ImagePopup, type ImagePopupValue } from "./ImagePopup";
 import { LatexPopup, type LatexPopupValue } from "./LatexPopup";
 import { LinkPopup, type LinkPopupValue } from "./LinkPopup";
 import { SelectionToolbar } from "./SelectionToolbar";
@@ -95,11 +98,15 @@ export function MilkdownEditor({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const linkPopupRef = useRef<HTMLFormElement>(null);
   const latexPopupRef = useRef<HTMLFormElement>(null);
+  const imagePopupRef = useRef<HTMLFormElement>(null);
   const blockMenuRef = useRef<HTMLDivElement | null>(null);
   const blockHandleRef = useRef<HTMLDivElement | null>(null);
   const linkNameInputRef = useRef<HTMLInputElement>(null);
   const linkHrefInputRef = useRef<HTMLInputElement>(null);
   const latexInputRef = useRef<HTMLInputElement>(null);
+  const imagePathInputRef = useRef<HTMLInputElement>(null);
+  const imageAltInputRef = useRef<HTMLInputElement>(null);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const frontmatterRef = useRef("");
   const onChangeRef = useRef(onChange);
@@ -108,6 +115,10 @@ export function MilkdownEditor({
   const editorChromeRefreshFrameRef = useRef<number | null>(null);
   const autoScrollFrameRef = useRef<number | null>(null);
   const runtimeRef = useRef<ReturnType<typeof createMilkdownRuntime> | null>(null);
+  const imagePopupFileRef = useRef<File | null>(null);
+  const imagePopupResolverRef = useRef<((value: EditorImageValue | undefined) => void) | null>(
+    null,
+  );
   const blockMenuStateRef = useRef<BlockMenuState>(EMPTY_BLOCK_MENU_STATE);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -143,6 +154,7 @@ export function MilkdownEditor({
     style: {},
     value: null,
   });
+  const [imagePopupValue, setImagePopupValue] = useState<ImagePopupValue | null>(null);
   const [blockMenuState, setBlockMenuState] =
     useState<BlockMenuState>(EMPTY_BLOCK_MENU_STATE);
   const [hoveredBlock, setHoveredBlockState] = useState<ActiveBlock | null>(null);
@@ -712,25 +724,14 @@ export function MilkdownEditor({
           setMarkdown,
           getMarkdown,
           focus,
+          runAction: async (action) => {
+            await performEditorAction(runtime, action, true);
+          },
         }),
       );
 
       unlisten = await listenForEditorActions(async (action) => {
-        await runEditorAction({
-          runtime,
-          action,
-          frontmatterRef,
-          onChange: onChangeRef.current,
-          openLinkPopup,
-          openLatexPopup,
-        });
-        runtime.action((ctx) => {
-          const view = ctx.get(editorViewCtx);
-          scheduleEditorChromeRefresh(view);
-          if (action.action === "insertFrontmatter") {
-            void emitEditorState(buildEditorState(view));
-          }
-        });
+        await performEditorAction(runtime, action);
       });
 
       scheduleEditorChromeRefresh(view);
@@ -787,6 +788,22 @@ export function MilkdownEditor({
     if (focus) viewRef.current?.focus();
   };
 
+  const resolveImagePopup = (value: EditorImageValue | undefined, focus: boolean) => {
+    const resolver = imagePopupResolverRef.current;
+    imagePopupResolverRef.current = null;
+    imagePopupFileRef.current = null;
+    setImagePopupValue(null);
+    if (imageFileInputRef.current) {
+      imageFileInputRef.current.value = "";
+    }
+    if (focus) viewRef.current?.focus();
+    resolver?.(value);
+  };
+
+  const closeImagePopup = (focus = true) => {
+    resolveImagePopup(undefined, focus);
+  };
+
   const closeBlockMenu = (focus = true) => {
     setMenuBlock(null);
     menuTriggerBlockRef.current = null;
@@ -821,6 +838,51 @@ export function MilkdownEditor({
     });
   };
 
+  const requestImage = () =>
+    new Promise<EditorImageValue | undefined>((resolve) => {
+      if (imagePopupResolverRef.current) {
+        resolveImagePopup(undefined, false);
+      }
+      imagePopupResolverRef.current = resolve;
+      imagePopupFileRef.current = null;
+      closeLinkPopup(false);
+      closeLatexPopup(false);
+      closeBlockMenu(false);
+      setImagePopupValue({
+        src: "",
+        alt: "",
+        fileName: "",
+      });
+    });
+
+  const browseImagePath = async () => {
+    const selected = await open({
+      directory: false,
+      multiple: false,
+      filters: [
+        {
+          name: "Image",
+          extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"],
+        },
+      ],
+    });
+    if (typeof selected !== "string") return;
+
+    imagePopupFileRef.current = null;
+    if (imageFileInputRef.current) {
+      imageFileInputRef.current.value = "";
+    }
+    setImagePopupValue((current) =>
+      current
+        ? {
+            ...current,
+            src: selected,
+            fileName: "",
+          }
+        : current,
+    );
+  };
+
   const submitLinkPopup = () => {
     const view = viewRef.current;
     const value = linkPopupState.value;
@@ -846,10 +908,42 @@ export function MilkdownEditor({
     closeLatexPopup();
   };
 
+  const submitImagePopup = async () => {
+    const value = imagePopupValue;
+    if (!value) return;
+
+    const src = value.src.trim();
+    const alt = value.alt.trim() || undefined;
+
+    if (src) {
+      resolveImagePopup({ src, alt }, false);
+      return;
+    }
+
+    const file = imagePopupFileRef.current;
+    if (!file) return;
+
+    resolveImagePopup(
+      {
+        src: await readFileAsDataUrl(file),
+        alt,
+      },
+      false,
+    );
+  };
+
   const handleToolbarAction = async (action: EditorAction) => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
 
+    await performEditorAction(runtime, action, true);
+  };
+
+  const performEditorAction = async (
+    runtime: NonNullable<typeof runtimeRef.current>,
+    action: EditorAction,
+    focusAfter = false,
+  ) => {
     await runEditorAction({
       runtime,
       action,
@@ -857,11 +951,17 @@ export function MilkdownEditor({
       onChange: onChangeRef.current,
       openLinkPopup,
       openLatexPopup,
+      promptForImage: requestImage,
     });
     runtime.action((ctx) => {
       const view = ctx.get(editorViewCtx);
-      view.focus();
+      if (focusAfter) {
+        view.focus();
+      }
       scheduleEditorChromeRefresh(view);
+      if (action.action === "insertFrontmatter") {
+        void emitEditorState(buildEditorState(view));
+      }
     });
   };
 
@@ -902,6 +1002,7 @@ export function MilkdownEditor({
         onChange: onChangeRef.current,
         openLinkPopup,
         openLatexPopup,
+        promptForImage: requestImage,
       });
     } else if (key.startsWith("change:")) {
       await runChangeBlockAction({
@@ -974,6 +1075,13 @@ export function MilkdownEditor({
   }, [latexPopupState.value?.pos]);
 
   useEffect(() => {
+    if (!imagePopupValue) return;
+
+    imagePathInputRef.current?.focus();
+    imagePathInputRef.current?.select();
+  }, [Boolean(imagePopupValue)]);
+
+  useEffect(() => {
     if (!linkPopupState.value) return;
 
     const handlePointerDown = (event: MouseEvent) => {
@@ -1020,6 +1128,21 @@ export function MilkdownEditor({
   }, [latexPopupState.value]);
 
   useEffect(() => {
+    if (!imagePopupValue) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeImagePopup();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [imagePopupValue]);
+
+  useEffect(() => {
     if (!blockMenuState.visible) return;
 
     const handlePointerDown = (event: MouseEvent) => {
@@ -1033,6 +1156,16 @@ export function MilkdownEditor({
       document.removeEventListener("mousedown", handlePointerDown);
     };
   }, [blockMenuState.visible]);
+
+  useEffect(
+    () => () => {
+      if (imagePopupResolverRef.current) {
+        imagePopupResolverRef.current(undefined);
+        imagePopupResolverRef.current = null;
+      }
+    },
+    [],
+  );
 
   return (
     <>
@@ -1142,11 +1275,65 @@ export function MilkdownEditor({
           toolbarState.visible &&
           !linkPopupState.value &&
           !latexPopupState.value &&
+          !imagePopupValue &&
           !blockMenuState.visible
         }
         onAction={handleToolbarAction}
         onRefreshPosition={refreshToolbarPosition}
       />
+      {typeof document !== "undefined" && imagePopupValue
+        ? createPortal(
+            <ImagePopup
+              popupRef={imagePopupRef}
+              pathInputRef={imagePathInputRef}
+              altInputRef={imageAltInputRef}
+              fileInputRef={imageFileInputRef}
+              value={imagePopupValue}
+              onChange={(patch) => {
+                if (typeof patch.src === "string" && patch.src.trim()) {
+                  imagePopupFileRef.current = null;
+                  if (imageFileInputRef.current) {
+                    imageFileInputRef.current.value = "";
+                  }
+                  patch = {
+                    ...patch,
+                    fileName: "",
+                  };
+                }
+                setImagePopupValue((current) =>
+                  current
+                    ? {
+                        ...current,
+                        ...patch,
+                      }
+                    : current,
+                );
+              }}
+              onBrowsePath={() => {
+                void browseImagePath();
+              }}
+              onPickFile={(file) => {
+                imagePopupFileRef.current = file ?? null;
+                setImagePopupValue((current) =>
+                  current
+                    ? {
+                        ...current,
+                        src: "",
+                        fileName: file?.name ?? "",
+                      }
+                    : current,
+                );
+              }}
+              onSubmit={() => {
+                void submitImagePopup();
+              }}
+              onCancel={() => {
+                closeImagePopup();
+              }}
+            />,
+            document.body,
+          )
+        : null}
       <LatexPopup
         popupRef={latexPopupRef}
         inputRef={latexInputRef}

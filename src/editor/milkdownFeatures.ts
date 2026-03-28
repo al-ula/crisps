@@ -78,7 +78,7 @@ export function useImageFeature(
         ...value,
         uploadButton: "Upload",
         confirmButton: "Confirm",
-        uploadPlaceholderText: "or paste link",
+        uploadPlaceholderText: "or paste path / URL",
         onUpload,
       }));
       ctx.update(imageBlockConfig.key, (value) => ({
@@ -86,7 +86,7 @@ export function useImageFeature(
         uploadButton: "Upload file",
         confirmButton: "Confirm",
         captionPlaceholderText: "Write Image Caption",
-        uploadPlaceholderText: "or paste link",
+        uploadPlaceholderText: "or paste path / URL",
         onUpload,
       }));
     })

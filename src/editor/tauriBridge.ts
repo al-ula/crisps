@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import type { EditorAction, EditorAdapter, EditorStateSnapshot } from "./types";
 
@@ -14,18 +13,14 @@ export function createTauriEditorAdapter(options: {
   setMarkdown: (markdown: string) => void;
   getMarkdown: () => string;
   focus: () => void;
+  runAction: (action: EditorAction) => Promise<void>;
 }): EditorAdapter {
   return {
     setMarkdown: options.setMarkdown,
     getMarkdown: options.getMarkdown,
     focus: options.focus,
     async runAction(action) {
-      await invoke("editor_action", {
-        action: action.action,
-        blockType: action.blockType,
-        rows: action.rows,
-        columns: action.columns,
-      });
+      await options.runAction(action);
     },
     async subscribeState(listener) {
       return listen<EditorStateSnapshot>("editor-state", (event) => {
