@@ -54,7 +54,7 @@ function AppInner() {
       ? (fileState.currentPath.split(/[\\/]/).pop() ?? "Untitled")
       : "Untitled";
     getCurrentWindow().setTitle(
-      `${fileState.isDirty ? "* " : ""}${name} — markdown-editor`,
+      `${fileState.isDirty ? "* " : ""}${name} — Crisps`,
     );
   }, [fileState.currentPath, fileState.isDirty]);
 

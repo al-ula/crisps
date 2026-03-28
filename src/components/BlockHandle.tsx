@@ -1,14 +1,14 @@
 import type {
   CSSProperties,
   DragEvent as ReactDragEvent,
-  MutableRefObject,
+  RefObject,
   PointerEvent as ReactPointerEvent,
 } from "react";
 import type { BlockMenuIcon } from "../editor/blockMenuConfig";
 import { BlockIconRenderer } from "./BlockIcon";
 
 interface BlockHandleProps {
-  containerRef: MutableRefObject<HTMLDivElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
   style: CSSProperties;
   visible: boolean;
   menuDisabled: boolean;
@@ -45,7 +45,7 @@ export function BlockHandle({
       ref={(node) => {
         containerRef.current = node;
       }}
-      className={`fixed z-[1000] transition-[opacity,transform] duration-100 ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+      className={`fixed z-1000 transition-[opacity,transform] duration-100 ${visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
       style={style}
       onPointerEnter={onPointerEnter}
     >

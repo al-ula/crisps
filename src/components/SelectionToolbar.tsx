@@ -47,7 +47,7 @@ export function SelectionToolbar({
   return (
     <div
       ref={toolbarRef}
-      className="card card-frosted fixed z-[1010] overflow-visible p-1"
+      className="card card-frosted fixed z-1010 overflow-visible p-1"
       style={style}
       role="toolbar"
       aria-label="Selection formatting"
@@ -67,7 +67,7 @@ export function SelectionToolbar({
           }
         />
 
-        <span className="mx-[3px] h-4 w-px shrink-0 bg-base-content/10" />
+        <span className="mx-0.75 h-4 w-px shrink-0 bg-base-content/10" />
 
         <FormatButton
           active={editorState.bold}
@@ -110,7 +110,7 @@ export function SelectionToolbar({
           {"</>"}
         </FormatButton>
 
-        <span className="mx-[3px] h-4 w-px shrink-0 bg-base-content/10" />
+        <span className="mx-0.75 h-4 w-px shrink-0 bg-base-content/10" />
 
         <FormatButton
           label="Link"

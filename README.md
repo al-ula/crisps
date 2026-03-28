@@ -1,4 +1,4 @@
-# markdown-editor
+# Crisps
 
 Markdown editor built with Tauri, React, and TypeScript.
 

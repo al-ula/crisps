@@ -1,5 +1,7 @@
 import {
   type CSSProperties,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -55,9 +57,8 @@ import type {
   EditorAdapter,
   EditorStateSnapshot,
 } from "../editor/types";
-import { BlockHandle } from "./BlockHandle";
+import { BlockEditorOverlay } from "./BlockEditorOverlay";
 import { getBlockIconForBlock } from "./BlockIcon";
-import { BlockMenu } from "./BlockMenu";
 import { ImagePopup, type ImagePopupValue } from "./ImagePopup";
 import { LatexPopup, type LatexPopupValue } from "./LatexPopup";
 import { LinkPopup, type LinkPopupValue } from "./LinkPopup";
@@ -88,7 +89,7 @@ const EMPTY_BLOCK_MENU_STATE: BlockMenuState = {
   activeItemKey: null,
 };
 
-const BLOCK_DRAG_MIME = "application/x-markdown-editor-block";
+const BLOCK_DRAG_MIME = "application/x-crisps-block";
 
 export function MilkdownEditor({
   isDarkTheme,
@@ -115,11 +116,13 @@ export function MilkdownEditor({
   const suppressMarkdownTimerRef = useRef<number | null>(null);
   const editorChromeRefreshFrameRef = useRef<number | null>(null);
   const autoScrollFrameRef = useRef<number | null>(null);
-  const runtimeRef = useRef<ReturnType<typeof createMilkdownRuntime> | null>(null);
-  const imagePopupFileRef = useRef<File | null>(null);
-  const imagePopupResolverRef = useRef<((value: EditorImageValue | undefined) => void) | null>(
+  const runtimeRef = useRef<ReturnType<typeof createMilkdownRuntime> | null>(
     null,
   );
+  const imagePopupFileRef = useRef<File | null>(null);
+  const imagePopupResolverRef = useRef<
+    ((value: EditorImageValue | undefined) => void) | null
+  >(null);
   const blockMenuStateRef = useRef<BlockMenuState>(EMPTY_BLOCK_MENU_STATE);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
@@ -155,11 +158,17 @@ export function MilkdownEditor({
     style: {},
     value: null,
   });
-  const [imagePopupValue, setImagePopupValue] = useState<ImagePopupValue | null>(null);
-  const [blockMenuState, setBlockMenuState] =
-    useState<BlockMenuState>(EMPTY_BLOCK_MENU_STATE);
-  const [hoveredBlock, setHoveredBlockState] = useState<ActiveBlock | null>(null);
-  const [selectionBlock, setSelectionBlockState] = useState<ActiveBlock | null>(null);
+  const [imagePopupValue, setImagePopupValue] =
+    useState<ImagePopupValue | null>(null);
+  const [blockMenuState, setBlockMenuState] = useState<BlockMenuState>(
+    EMPTY_BLOCK_MENU_STATE,
+  );
+  const [hoveredBlock, setHoveredBlockState] = useState<ActiveBlock | null>(
+    null,
+  );
+  const [selectionBlock, setSelectionBlockState] = useState<ActiveBlock | null>(
+    null,
+  );
   const [dragState, setDragStateState] = useState<DragState | null>(null);
   const [handleStyle, setHandleStyle] = useState<CSSProperties>({});
   const [dropIndicatorState, setDropIndicatorState] = useState<{
@@ -237,7 +246,10 @@ export function MilkdownEditor({
     );
   };
 
-  const getVisibleHandleBlock = (view: EditorView, selection: ActiveBlock | null) => {
+  const getVisibleHandleBlock = (
+    view: EditorView,
+    selection: ActiveBlock | null,
+  ) => {
     if (blockMenuStateRef.current.visible) return null;
     return (
       dragStateRef.current?.target?.block ??
@@ -274,12 +286,10 @@ export function MilkdownEditor({
   const isBlockMenuOverlayTarget = (target: Node | null) =>
     Boolean(
       target &&
-      (
-        blockHandleRef.current?.contains(target) ||
+      (blockHandleRef.current?.contains(target) ||
         blockMenuRef.current?.contains(target) ||
         (target instanceof Element &&
-          target.closest(".block-popup-submenu-menu"))
-      ),
+          target.closest(".block-popup-submenu-menu"))),
     );
 
   const refreshBlockControls = (view: EditorView) => {
@@ -389,13 +399,14 @@ export function MilkdownEditor({
     const pointer = dragPointerRef.current;
     if (!sourceBlock || !pointer) return;
 
-    const target = runtimeRef.current?.blockEdit.resolveDropTargetAtCoords(
-      {
-        left: pointer.x,
-        top: pointer.y,
-      },
-      sourceBlock,
-    ) ?? null;
+    const target =
+      runtimeRef.current?.blockEdit.resolveDropTargetAtCoords(
+        {
+          left: pointer.x,
+          top: pointer.y,
+        },
+        sourceBlock,
+      ) ?? null;
 
     setDragState({
       sourceBlock,
@@ -420,10 +431,16 @@ export function MilkdownEditor({
       let delta = 0;
 
       if (pointer.y < rect.top + threshold) {
-        const intensity = Math.max(0, (rect.top + threshold - pointer.y) / threshold);
+        const intensity = Math.max(
+          0,
+          (rect.top + threshold - pointer.y) / threshold,
+        );
         delta = -Math.max(4, Math.round(maxSpeed * intensity));
       } else if (pointer.y > rect.bottom - threshold) {
-        const intensity = Math.max(0, (pointer.y - (rect.bottom - threshold)) / threshold);
+        const intensity = Math.max(
+          0,
+          (pointer.y - (rect.bottom - threshold)) / threshold,
+        );
         delta = Math.max(4, Math.round(maxSpeed * intensity));
       }
 
@@ -467,7 +484,10 @@ export function MilkdownEditor({
       scheduleEditorChromeRefresh(view);
     };
 
-    const syncLatexPopupState = (view: EditorView, openWhenSelected: boolean) => {
+    const syncLatexPopupState = (
+      view: EditorView,
+      openWhenSelected: boolean,
+    ) => {
       setLatexPopupState((current) => {
         const nextValue = getLatexPopupValue(view.state);
         if (!nextValue) {
@@ -547,7 +567,9 @@ export function MilkdownEditor({
             return;
           }
 
-          onChangeRef.current(joinFrontmatter(frontmatterRef.current, markdown));
+          onChangeRef.current(
+            joinFrontmatter(frontmatterRef.current, markdown),
+          );
         });
       },
     });
@@ -611,12 +633,14 @@ export function MilkdownEditor({
           }
           return;
         }
-
       };
 
       const handleDocumentPointerDown = (event: PointerEvent) => {
         const target = event.target as Node | null;
-        if (target && (view.dom.contains(target) || isBlockMenuOverlayTarget(target))) {
+        if (
+          target &&
+          (view.dom.contains(target) || isBlockMenuOverlayTarget(target))
+        ) {
           return;
         }
 
@@ -681,7 +705,9 @@ export function MilkdownEditor({
               top: event.clientY,
             },
             sourceBlock,
-          ) ?? dragStateRef.current?.target ?? null;
+          ) ??
+          dragStateRef.current?.target ??
+          null;
         const moved =
           sourceBlock && target
             ? runtime.blockEdit.moveBlockTo(
@@ -713,8 +739,16 @@ export function MilkdownEditor({
       document.addEventListener("drop", handleDocumentDrop, true);
       document.addEventListener("dragend", handleDocumentDragEnd, true);
       removeEditorListeners = () => {
-        document.removeEventListener("pointermove", handleDocumentPointerMove, true);
-        document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
+        document.removeEventListener(
+          "pointermove",
+          handleDocumentPointerMove,
+          true,
+        );
+        document.removeEventListener(
+          "pointerdown",
+          handleDocumentPointerDown,
+          true,
+        );
         document.removeEventListener("dragover", handleDocumentDragOver, true);
         document.removeEventListener("drop", handleDocumentDrop, true);
         document.removeEventListener("dragend", handleDocumentDragEnd, true);
@@ -789,7 +823,10 @@ export function MilkdownEditor({
     if (focus) viewRef.current?.focus();
   };
 
-  const resolveImagePopup = (value: EditorImageValue | undefined, focus: boolean) => {
+  const resolveImagePopup = (
+    value: EditorImageValue | undefined,
+    focus: boolean,
+  ) => {
     const resolver = imagePopupResolverRef.current;
     imagePopupResolverRef.current = null;
     imagePopupFileRef.current = null;
@@ -833,7 +870,12 @@ export function MilkdownEditor({
     const value = getLatexPopupValue(view.state);
     setLatexPopupState({
       style: value
-        ? buildLatexPopupStyle(view, value.from, value.to, latexPopupRef.current)
+        ? buildLatexPopupStyle(
+            view,
+            value.from,
+            value.to,
+            latexPopupRef.current,
+          )
         : {},
       value,
     });
@@ -863,7 +905,16 @@ export function MilkdownEditor({
       filters: [
         {
           name: "Image",
-          extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"],
+          extensions: [
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "webp",
+            "svg",
+            "bmp",
+            "avif",
+          ],
         },
       ],
     });
@@ -967,7 +1018,8 @@ export function MilkdownEditor({
   };
 
   const openBlockMenu = () => {
-    const activeBlock = menuTriggerBlockRef.current ?? getInteractiveHandleBlock();
+    const activeBlock =
+      menuTriggerBlockRef.current ?? getInteractiveHandleBlock();
     const view = viewRef.current;
     if (!activeBlock || !view) return;
 
@@ -1168,105 +1220,106 @@ export function MilkdownEditor({
     [],
   );
 
+  const handleBlockMenuPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    menuTriggerRectRef.current = event.currentTarget.getBoundingClientRect();
+    menuTriggerBlockRef.current =
+      handleBlockRef.current ??
+      hoveredBlockRef.current ??
+      selectionBlockRef.current;
+  };
+
+  const handleBlockHandlePointerEnter = () => {
+    const activeBlock = getInteractiveHandleBlock();
+    if (!activeBlock) return;
+    setHoveredBlock(activeBlock);
+    if (viewRef.current) {
+      scheduleEditorChromeRefresh(viewRef.current);
+    }
+  };
+
+  const handleBlockDragPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
+    event.stopPropagation();
+    const activeBlock = getInteractiveHandleBlock();
+    if (!activeBlock) return;
+    closeBlockMenu(false);
+    runtimeRef.current?.blockEdit.selectBlock(activeBlock);
+    setHoveredBlock(activeBlock);
+    if (viewRef.current) {
+      scheduleEditorChromeRefresh(viewRef.current);
+    }
+  };
+
+  const handleBlockDragStart = (event: ReactDragEvent<HTMLButtonElement>) => {
+    const activeBlock = getInteractiveHandleBlock();
+    if (!activeBlock) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData(
+      BLOCK_DRAG_MIME,
+      JSON.stringify({
+        pos: activeBlock.pos,
+        type: activeBlock.typeName,
+      }),
+    );
+    runtimeRef.current?.blockEdit.selectBlock(activeBlock);
+    dragPointerRef.current = null;
+    setDragState({
+      sourceBlock: activeBlock,
+      target: null,
+    });
+    setHoveredBlock(activeBlock);
+  };
+
+  const handleBlockDragEnd = () => {
+    stopAutoScroll();
+    setDragState(null);
+    setDropIndicatorState(null);
+    if (viewRef.current) {
+      scheduleEditorChromeRefresh(viewRef.current);
+    }
+  };
+
+  const visibleHandleBlock = blockMenuState.visible
+    ? blockMenuState.activeBlock
+    : (dragState?.target?.block ??
+      dragState?.sourceBlock ??
+      hoveredBlock ??
+      (toolbarState.editorState.focused ? selectionBlock : null));
+
   return (
     <>
       <div ref={rootRef} className="milkdown milkdown-host h-full" />
-      {typeof document !== "undefined"
-        ? createPortal(
-            <BlockHandle
-              containerRef={blockHandleRef}
-              style={handleStyle}
-              visible={editorVisible && Boolean(
-                blockMenuState.visible
-                  ? blockMenuState.activeBlock
-                  : (dragState?.target?.block ??
-                    dragState?.sourceBlock ??
-                    hoveredBlock ??
-                    (toolbarState.editorState.focused ? selectionBlock : null)),
-              )}
-              menuDisabled={blockMenuState.visible}
-              menuIcon={handleMenuIcon}
-              onOpenMenu={openBlockMenu}
-              onMenuPointerDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                menuTriggerRectRef.current =
-                  event.currentTarget.getBoundingClientRect();
-                menuTriggerBlockRef.current =
-                  handleBlockRef.current ??
-                  hoveredBlockRef.current ??
-                  selectionBlockRef.current;
-              }}
-              onPointerEnter={() => {
-                const activeBlock = handleBlockRef.current ?? hoveredBlockRef.current ?? selectionBlockRef.current;
-                if (!activeBlock) return;
-                setHoveredBlock(activeBlock);
-                if (viewRef.current) {
-                  scheduleEditorChromeRefresh(viewRef.current);
-                }
-              }}
-              onDragPointerDown={(event) => {
-                event.stopPropagation();
-                const activeBlock = handleBlockRef.current ?? hoveredBlockRef.current ?? selectionBlockRef.current;
-                if (!activeBlock) return;
-                closeBlockMenu(false);
-                runtimeRef.current?.blockEdit.selectBlock(activeBlock);
-                setHoveredBlock(activeBlock);
-                if (viewRef.current) {
-                  scheduleEditorChromeRefresh(viewRef.current);
-                }
-              }}
-              onDragStart={(event) => {
-                const activeBlock = handleBlockRef.current ?? hoveredBlockRef.current ?? selectionBlockRef.current;
-                if (!activeBlock) {
-                  event.preventDefault();
-                  return;
-                }
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData(
-                  BLOCK_DRAG_MIME,
-                  JSON.stringify({
-                    pos: activeBlock.pos,
-                    type: activeBlock.typeName,
-                  }),
-                );
-                runtimeRef.current?.blockEdit.selectBlock(activeBlock);
-                dragPointerRef.current = null;
-                setDragState({
-                  sourceBlock: activeBlock,
-                  target: null,
-                });
-                setHoveredBlock(activeBlock);
-              }}
-              onDragEnd={() => {
-                stopAutoScroll();
-                setDragState(null);
-                setDropIndicatorState(null);
-                if (viewRef.current) {
-                  scheduleEditorChromeRefresh(viewRef.current);
-                }
-              }}
-            />,
-            document.body,
-          )
-        : null}
-      {dropIndicatorState ? (
-        <div
-          className={`block-drop-indicator block-drop-indicator-${dropIndicatorState.placement}`}
-          style={dropIndicatorState.style}
-        />
-      ) : null}
-      <BlockMenu
-        style={blockMenuState.style}
-        visible={editorVisible && blockMenuState.visible}
-        items={blockMenuModel}
-        activeItemKey={blockMenuState.activeItemKey}
-        menuRef={blockMenuRef}
-        onHoverItem={(key) => {
+      <BlockEditorOverlay
+        blockHandleRef={blockHandleRef}
+        blockMenuRef={blockMenuRef}
+        handleStyle={handleStyle}
+        handleVisible={editorVisible && Boolean(visibleHandleBlock)}
+        menuDisabled={blockMenuState.visible}
+        menuIcon={handleMenuIcon}
+        onOpenMenu={openBlockMenu}
+        onMenuPointerDown={handleBlockMenuPointerDown}
+        onHandlePointerEnter={handleBlockHandlePointerEnter}
+        onDragPointerDown={handleBlockDragPointerDown}
+        onDragStart={handleBlockDragStart}
+        onDragEnd={handleBlockDragEnd}
+        dropIndicatorState={dropIndicatorState}
+        blockMenuStyle={blockMenuState.style}
+        blockMenuVisible={editorVisible && blockMenuState.visible}
+        blockMenuItems={blockMenuModel}
+        blockMenuActiveItemKey={blockMenuState.activeItemKey}
+        onHoverMenuItem={(key) => {
           setBlockMenuState((current) => ({ ...current, activeItemKey: key }));
         }}
-        onActivateItem={handleBlockMenuAction}
-        onClose={closeBlockMenu}
+        onActivateMenuItem={handleBlockMenuAction}
+        onCloseMenu={closeBlockMenu}
       />
       <SelectionToolbar
         editorState={toolbarState.editorState}
@@ -1440,9 +1493,7 @@ function buildSelectionToolbarState(
   const fallbackTop = Math.max(start.bottom, end.bottom) + 12;
   const maxTop = Math.max(topSafeArea, window.innerHeight - popupHeight - 8);
   const top =
-    preferredTop >= topSafeArea
-      ? preferredTop
-      : Math.min(fallbackTop, maxTop);
+    preferredTop >= topSafeArea ? preferredTop : Math.min(fallbackTop, maxTop);
 
   return {
     editorState,
@@ -1649,12 +1700,14 @@ function applyLink(view: EditorView, value: LinkPopupValue): boolean {
 
   if (value.showName) {
     const label = value.name || value.href;
-    const textNode = state.schema.text(label, [type.create({ href: value.href })]);
+    const textNode = state.schema.text(label, [
+      type.create({ href: value.href }),
+    ]);
     const next = tr.replaceRangeWith(value.from, value.to, textNode);
     view.dispatch(
-      next.setSelection(
-        TextSelection.create(next.doc, value.from + label.length),
-      ).scrollIntoView(),
+      next
+        .setSelection(TextSelection.create(next.doc, value.from + label.length))
+        .scrollIntoView(),
     );
     return true;
   }
@@ -1740,8 +1793,14 @@ function buildBlockMenuStyle(
   const fitsRight = preferredLeft <= maxLeft;
   const left = fitsRight
     ? preferredLeft
-    : Math.max(8, Math.min((rect?.left ?? controlLeft) - popupWidth - 8, maxLeft));
-  const top = Math.min(controlTop, Math.max(8, window.innerHeight - popupHeight - 8));
+    : Math.max(
+        8,
+        Math.min((rect?.left ?? controlLeft) - popupWidth - 8, maxLeft),
+      );
+  const top = Math.min(
+    controlTop,
+    Math.max(8, window.innerHeight - popupHeight - 8),
+  );
   return { left, top };
 }
 

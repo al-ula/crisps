@@ -1,4 +1,4 @@
-import type { CSSProperties, FormEvent, RefObject } from "react";
+import type { CSSProperties, SubmitEvent, RefObject } from "react";
 
 export interface LatexPopupValue {
   from: number;
@@ -26,7 +26,7 @@ export function LatexPopup({
 }: LatexPopupProps) {
   if (!value) return null;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
   };
@@ -34,7 +34,7 @@ export function LatexPopup({
   return (
     <form
       ref={popupRef}
-      className="fixed z-[1200] w-[min(320px,calc(100vw-16px))]"
+      className="fixed z-1200 w-[min(320px,calc(100vw-16px))]"
       style={style}
       onSubmit={handleSubmit}
     >
@@ -49,7 +49,10 @@ export function LatexPopup({
               onChange({ value: event.target.value });
             }}
           />
-          <button type="submit" className="btn btn-soft btn-xs btn-frosted btn-recessed">
+          <button
+            type="submit"
+            className="btn btn-soft btn-xs btn-frosted btn-recessed"
+          >
             Apply
           </button>
         </div>

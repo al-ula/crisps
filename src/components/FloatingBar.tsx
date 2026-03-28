@@ -48,16 +48,51 @@ const BLOCK_ITEMS: MenuItem[] = [
     label: "Paragraph",
     action: "blockType:paragraph",
   },
-  { type: "item", key: "heading-1", label: "Heading 1", action: "blockType:h1" },
-  { type: "item", key: "heading-2", label: "Heading 2", action: "blockType:h2" },
-  { type: "item", key: "heading-3", label: "Heading 3", action: "blockType:h3" },
-  { type: "item", key: "heading-4", label: "Heading 4", action: "blockType:h4" },
-  { type: "item", key: "heading-5", label: "Heading 5", action: "blockType:h5" },
-  { type: "item", key: "heading-6", label: "Heading 6", action: "blockType:h6" },
+  {
+    type: "item",
+    key: "heading-1",
+    label: "Heading 1",
+    action: "blockType:h1",
+  },
+  {
+    type: "item",
+    key: "heading-2",
+    label: "Heading 2",
+    action: "blockType:h2",
+  },
+  {
+    type: "item",
+    key: "heading-3",
+    label: "Heading 3",
+    action: "blockType:h3",
+  },
+  {
+    type: "item",
+    key: "heading-4",
+    label: "Heading 4",
+    action: "blockType:h4",
+  },
+  {
+    type: "item",
+    key: "heading-5",
+    label: "Heading 5",
+    action: "blockType:h5",
+  },
+  {
+    type: "item",
+    key: "heading-6",
+    label: "Heading 6",
+    action: "blockType:h6",
+  },
   { type: "divider", key: "divider-headings" },
   { type: "item", key: "quote", label: "Quote", action: "blockType:quote" },
   { type: "divider", key: "divider-quote" },
-  { type: "item", key: "bullet-list", label: "Bullet List", action: "bulletList" },
+  {
+    type: "item",
+    key: "bullet-list",
+    label: "Bullet List",
+    action: "bulletList",
+  },
   {
     type: "item",
     key: "ordered-list",
@@ -65,7 +100,12 @@ const BLOCK_ITEMS: MenuItem[] = [
     action: "orderedList",
   },
   { type: "item", key: "checklist", label: "Checklist", action: "checklist" },
-  { type: "item", key: "remove-list", label: "Remove List", action: "removeList" },
+  {
+    type: "item",
+    key: "remove-list",
+    label: "Remove List",
+    action: "removeList",
+  },
 ];
 
 const MENU_SECTIONS: MenuSection[] = [
@@ -73,9 +113,27 @@ const MENU_SECTIONS: MenuSection[] = [
     key: "file",
     label: "File",
     items: [
-      { type: "item", key: "new", label: "New", shortcut: "Ctrl+N", action: "new" },
-      { type: "item", key: "open", label: "Open…", shortcut: "Ctrl+O", action: "open" },
-      { type: "item", key: "save", label: "Save", shortcut: "Ctrl+S", action: "save" },
+      {
+        type: "item",
+        key: "new",
+        label: "New",
+        shortcut: "Ctrl+N",
+        action: "new",
+      },
+      {
+        type: "item",
+        key: "open",
+        label: "Open…",
+        shortcut: "Ctrl+O",
+        action: "open",
+      },
+      {
+        type: "item",
+        key: "save",
+        label: "Save",
+        shortcut: "Ctrl+S",
+        action: "save",
+      },
       {
         type: "item",
         key: "save-as",
@@ -95,10 +153,27 @@ const MENU_SECTIONS: MenuSection[] = [
     key: "edit",
     label: "Edit",
     items: [
-      { type: "item", key: "undo", label: "Undo", shortcut: "Ctrl+Z", action: "undo" },
-      { type: "item", key: "redo", label: "Redo", shortcut: "Ctrl+Y", action: "redo" },
+      {
+        type: "item",
+        key: "undo",
+        label: "Undo",
+        shortcut: "Ctrl+Z",
+        action: "undo",
+      },
+      {
+        type: "item",
+        key: "redo",
+        label: "Redo",
+        shortcut: "Ctrl+Y",
+        action: "redo",
+      },
       { type: "divider", key: "divider-history" },
-      { type: "item", key: "find", label: "Find & Replace", shortcut: "Ctrl+F" },
+      {
+        type: "item",
+        key: "find",
+        label: "Find & Replace",
+        shortcut: "Ctrl+F",
+      },
       { type: "divider", key: "divider-find" },
       { type: "submenu", key: "block", label: "Block", items: BLOCK_ITEMS },
     ],
@@ -138,8 +213,18 @@ const MENU_SECTIONS: MenuSection[] = [
         activeKey: "code",
       },
       { type: "divider", key: "divider-inline" },
-      { type: "item", key: "subscript", label: "Subscript", action: "subscript" },
-      { type: "item", key: "superscript", label: "Superscript", action: "superscript" },
+      {
+        type: "item",
+        key: "subscript",
+        label: "Subscript",
+        action: "subscript",
+      },
+      {
+        type: "item",
+        key: "superscript",
+        label: "Superscript",
+        action: "superscript",
+      },
     ],
   },
   {
@@ -174,9 +259,19 @@ const MENU_SECTIONS: MenuSection[] = [
     key: "view",
     label: "View",
     items: [
-      { type: "item", key: "toggle-sidebar", label: "Toggle Sidebar", action: "toggle-sidebar" },
+      {
+        type: "item",
+        key: "toggle-sidebar",
+        label: "Toggle Sidebar",
+        action: "toggle-sidebar",
+      },
       { type: "divider", key: "divider-sidebar" },
-      { type: "item", key: "source-mode", label: "Source / Preview", action: "source-mode" },
+      {
+        type: "item",
+        key: "source-mode",
+        label: "Source / Preview",
+        action: "source-mode",
+      },
       {
         type: "submenu",
         key: "theme",
@@ -303,7 +398,10 @@ export function FloatingBar() {
     const handler = (event: MouseEvent) => {
       const target = event.target;
       if (containerRef.current?.contains(target as Node)) return;
-      if (target instanceof Element && target.closest(".floating-bar-menu-layer")) {
+      if (
+        target instanceof Element &&
+        target.closest(".floating-bar-menu-layer")
+      ) {
         return;
       }
       closeMenu();
@@ -548,7 +646,7 @@ export function FloatingBar() {
   const titleLabel = `${fileState.isDirty ? "• " : ""}${titleName}`;
 
   return (
-    <div className="absolute inset-x-0 top-0 z-[1030] flex h-11 items-start justify-between px-3 pt-1.5">
+    <div className="absolute inset-x-0 top-0 z-1030 flex h-11 items-start justify-between px-3 pt-1.5">
       <div
         className="absolute inset-0 cursor-grab active:cursor-grabbing"
         data-tauri-drag-region
@@ -607,7 +705,7 @@ export function FloatingBar() {
                 </svg>
               )}
             </button>
-            <span className="mx-[3px] h-3.5 w-px shrink-0 bg-base-content/10" />
+            <span className="mx-0.75 h-3.5 w-px shrink-0 bg-base-content/10" />
             <button
               className={menuOpen ? ACTIVE_BTN : IDLE_BTN}
               aria-label="Menu"

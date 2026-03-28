@@ -1,4 +1,4 @@
-import type { CSSProperties, FormEvent, RefObject } from "react";
+import type { CSSProperties, SubmitEvent, RefObject } from "react";
 
 export interface LinkPopupValue {
   from: number;
@@ -29,7 +29,7 @@ export function LinkPopup({
 }: LinkPopupProps) {
   if (!value) return null;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
   };

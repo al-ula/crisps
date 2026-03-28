@@ -20,7 +20,7 @@ const SECTIONS = [
 export function SidebarIsland({ mode }: SidebarIslandProps) {
   return (
     <aside
-      className="card card-frosted pointer-events-auto mt-[var(--sidebar-top-offset)] ml-[var(--sidebar-gap)] text-base-content"
+      className="card card-frosted pointer-events-auto mt-(--sidebar-top-offset) ml-(--sidebar-gap) text-base-content"
       style={{
         width:
           mode === "overlay"
@@ -47,8 +47,8 @@ export function SidebarIsland({ mode }: SidebarIslandProps) {
         </div>
 
         <p className="flex-none text-[0.93rem] leading-6 text-base-content/78">
-          Placeholder structure for the upcoming workspace panel. This pass
-          only establishes the layout and responsive behavior.
+          Placeholder structure for the upcoming workspace panel. This pass only
+          establishes the layout and responsive behavior.
         </p>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-3 [scrollbar-gutter:stable]">

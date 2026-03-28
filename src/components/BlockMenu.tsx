@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { CSSProperties, MutableRefObject } from "react";
+import type { CSSProperties, RefObject } from "react";
 import type {
   BlockMenuItem,
   BlockMenuItemKey,
@@ -16,7 +16,10 @@ const BLOCK_MENU_LAYER_CLASS =
   "max-w-[min(248px,calc(100vw-16px))] max-h-[calc(100vh-16px)] overflow-y-auto";
 const BLOCK_MENU_LAYER_BASE_Z_INDEX = 1035;
 const EMPTY_ICON_SLOT = (
-  <span className="inline-flex h-4 min-w-4 shrink-0 opacity-0" aria-hidden="true" />
+  <span
+    className="inline-flex h-4 min-w-4 shrink-0 opacity-0"
+    aria-hidden="true"
+  />
 );
 
 type SubmenuKey = "add" | "change";
@@ -26,7 +29,7 @@ interface BlockMenuProps {
   visible: boolean;
   items: BlockMenuModel;
   activeItemKey: BlockMenuItemKey | null;
-  menuRef: MutableRefObject<HTMLDivElement | null>;
+  menuRef: RefObject<HTMLDivElement | null>;
   onHoverItem: (key: BlockMenuItemKey) => void;
   onActivateItem: (key: BlockMenuItemKey) => void;
   onClose: () => void;
@@ -113,18 +116,19 @@ export function BlockMenu({
         triggerProps: { "data-submenu-key": "change" },
       },
       ...items.topLevelItems.map((item) =>
-        buildBlockMenuItem(
-          item,
-          onHoverItem,
-          onActivateItem,
-          () => {
-            setOpenPath([]);
-            onHoverItem(item.key);
-          },
-        ),
+        buildBlockMenuItem(item, onHoverItem, onActivateItem, () => {
+          setOpenPath([]);
+          onHoverItem(item.key);
+        }),
       ),
     ],
-    [items.addItems, items.changeItems, items.topLevelItems, onActivateItem, onHoverItem],
+    [
+      items.addItems,
+      items.changeItems,
+      items.topLevelItems,
+      onActivateItem,
+      onHoverItem,
+    ],
   );
 
   const rootStyle: CSSProperties = {
@@ -141,8 +145,7 @@ export function BlockMenu({
         : `${BLOCK_MENU_LAYER_CLASS} block-popup-submenu-menu`,
     style: { zIndex: BLOCK_MENU_LAYER_BASE_Z_INDEX + depth },
     minWidth: 200,
-    onMouseDown:
-      depth === 0 ? (event) => event.preventDefault() : undefined,
+    onMouseDown: depth === 0 ? (event) => event.preventDefault() : undefined,
   });
 
   return (
@@ -169,7 +172,11 @@ function buildBlockMenuItem(
     key: item.key,
     label: item.label,
     leading:
-      item.kind === "topLevel" ? EMPTY_ICON_SLOT : <BlockIconRenderer icon={item.icon} />,
+      item.kind === "topLevel" ? (
+        EMPTY_ICON_SLOT
+      ) : (
+        <BlockIconRenderer icon={item.icon} />
+      ),
     trailing: (
       <span className="w-3 shrink-0 text-right text-[11px] opacity-70">
         {item.active ? "✓" : ""}
