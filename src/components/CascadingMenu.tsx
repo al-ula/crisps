@@ -18,6 +18,11 @@ const HIDDEN_MENU_STYLE: CSSProperties = {
   top: -9999,
   visibility: "hidden",
 };
+const MENU_SCROLL_STYLE: CSSProperties = {
+  maxHeight: "calc(100vh - 16px)",
+  overflowX: "hidden",
+  overflowY: "auto",
+};
 
 export type CascadingMenuItem =
   | {
@@ -127,11 +132,13 @@ export function CascadingMenu({
     const mergedStyle =
       depth === 0
         ? {
+            ...MENU_SCROLL_STYLE,
             ...rootStyle,
             ...(minWidth ? { minWidth } : null),
             ...style,
           }
         : {
+            ...MENU_SCROLL_STYLE,
             ...(layerStyles[depth] ?? HIDDEN_MENU_STYLE),
             ...(minWidth ? { minWidth } : null),
             ...style,
