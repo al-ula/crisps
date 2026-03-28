@@ -289,6 +289,43 @@
         inset 4px 4px 7px var(--surface-inset-shadow-pressed),
         inset -4px -4px 7px var(--surface-inset-highlight-pressed),
         inset 0 0 0 0.5px var(--surface-inset-rim-pressed);
+    --frosted-recessed-shadow-idle:
+        inset 4px 4px 6px var(--surface-inset-shadow-idle),
+        inset -4px -4px 6px var(--surface-inset-highlight-idle),
+        inset 0 0 0 0.5px var(--surface-inset-rim-idle);
+    --frosted-recessed-shadow-hover:
+        inset 5px 5px 8px
+            color-mix(in oklch, var(--surface-shadow-color) 68%, transparent),
+        inset -5px -5px 8px
+            color-mix(
+                in oklch,
+                var(--surface-highlight-color) 42%,
+                transparent
+            ),
+        inset 0 0 0 0.5px
+            color-mix(in oklch, var(--surface-rim-color) 24%, transparent);
+    --frosted-recessed-shadow-open:
+        inset 5px 5px 8px
+            color-mix(in oklch, var(--surface-shadow-color) 58%, transparent),
+        inset -5px -5px 8px
+            color-mix(
+                in oklch,
+                var(--surface-highlight-color) 30%,
+                transparent
+            ),
+        inset 0 0 0 0.5px
+            color-mix(in oklch, var(--surface-rim-color) 20%, transparent);
+    --frosted-recessed-shadow-active:
+        inset 5px 5px 9px
+            color-mix(in oklch, var(--surface-shadow-color) 64%, transparent),
+        inset -5px -5px 9px
+            color-mix(
+                in oklch,
+                var(--surface-highlight-color) 24%,
+                transparent
+            ),
+        inset 0 0 0 0.5px
+            color-mix(in oklch, var(--surface-rim-color) 16%, transparent);
     --frosted-border-hover: color-mix(
         in oklch,
         var(--color-base-content) 12%,
@@ -387,43 +424,10 @@
         --btn-border-hover: transparent;
         --btn-border-open: transparent;
         --btn-border-active: transparent;
-        --btn-shadow-idle:
-            inset 4px 4px 6px var(--surface-inset-shadow-idle),
-            inset -4px -4px 6px var(--surface-inset-highlight-idle),
-            inset 0 0 0 0.5px var(--surface-inset-rim-idle);
-        --btn-shadow-hover:
-            inset 5px 5px 8px
-                color-mix(in oklch, var(--surface-shadow-color) 68%, transparent),
-            inset -5px -5px 8px
-                color-mix(
-                    in oklch,
-                    var(--surface-highlight-color) 42%,
-                    transparent
-                ),
-            inset 0 0 0 0.5px
-                color-mix(in oklch, var(--surface-rim-color) 24%, transparent);
-        --btn-shadow-open:
-            inset 5px 5px 8px
-                color-mix(in oklch, var(--surface-shadow-color) 58%, transparent),
-            inset -5px -5px 8px
-                color-mix(
-                    in oklch,
-                    var(--surface-highlight-color) 30%,
-                    transparent
-                ),
-            inset 0 0 0 0.5px
-                color-mix(in oklch, var(--surface-rim-color) 20%, transparent);
-        --btn-shadow-active:
-            inset 5px 5px 9px
-                color-mix(in oklch, var(--surface-shadow-color) 64%, transparent),
-            inset -5px -5px 9px
-                color-mix(
-                    in oklch,
-                    var(--surface-highlight-color) 24%,
-                    transparent
-                ),
-            inset 0 0 0 0.5px
-                color-mix(in oklch, var(--surface-rim-color) 16%, transparent);
+        --btn-shadow-idle: var(--frosted-recessed-shadow-idle);
+        --btn-shadow-hover: var(--frosted-recessed-shadow-hover);
+        --btn-shadow-open: var(--frosted-recessed-shadow-open);
+        --btn-shadow-active: var(--frosted-recessed-shadow-active);
         --frosted-current-bg: var(--btn-bg-idle);
         --frosted-current-border: var(--btn-border-idle);
         --frosted-current-shadow: var(--btn-shadow-idle);
@@ -671,39 +675,9 @@
         --menu-bg-open: var(--frosted-bg-open);
         --menu-bg-active: var(--frosted-bg-pressed);
         --menu-bg-disabled: var(--frosted-bg-disabled);
-        --menu-shadow-hover:
-            inset 5px 5px 8px
-                color-mix(in oklch, var(--surface-shadow-color) 68%, transparent),
-            inset -5px -5px 8px
-                color-mix(
-                    in oklch,
-                    var(--surface-highlight-color) 42%,
-                    transparent
-                ),
-            inset 0 0 0 0.5px
-                color-mix(in oklch, var(--surface-rim-color) 24%, transparent);
-        --menu-shadow-open:
-            inset 5px 5px 8px
-                color-mix(in oklch, var(--surface-shadow-color) 58%, transparent),
-            inset -5px -5px 8px
-                color-mix(
-                    in oklch,
-                    var(--surface-highlight-color) 30%,
-                    transparent
-                ),
-            inset 0 0 0 0.5px
-                color-mix(in oklch, var(--surface-rim-color) 20%, transparent);
-        --menu-shadow-active:
-            inset 5px 5px 9px
-                color-mix(in oklch, var(--surface-shadow-color) 64%, transparent),
-            inset -5px -5px 9px
-                color-mix(
-                    in oklch,
-                    var(--surface-highlight-color) 24%,
-                    transparent
-                ),
-            inset 0 0 0 0.5px
-                color-mix(in oklch, var(--surface-rim-color) 16%, transparent);
+        --menu-shadow-hover: var(--frosted-recessed-shadow-hover);
+        --menu-shadow-open: var(--frosted-recessed-shadow-open);
+        --menu-shadow-active: var(--frosted-recessed-shadow-active);
         --menu-fg-disabled: var(--frosted-text-disabled);
     }
 

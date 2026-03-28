@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 const MENU_ENTRY_CLASS =
-  "group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-field bg-[var(--menu-bg-idle,transparent)] px-2.5 py-1 text-left text-xs text-base-content shadow-none transition-[background-color,box-shadow,color,opacity] hover:bg-[var(--menu-bg-hover,transparent)] hover:[box-shadow:var(--menu-shadow-hover,var(--frosted-shadow-hover))] focus-visible:bg-[var(--menu-bg-hover,transparent)] focus-visible:[box-shadow:var(--menu-shadow-hover,var(--frosted-shadow-hover))] active:bg-[var(--menu-bg-active,var(--menu-bg-hover,transparent))] active:[box-shadow:var(--menu-shadow-active,var(--frosted-shadow-pressed))] disabled:bg-[var(--menu-bg-disabled,transparent)] disabled:text-[var(--menu-fg-disabled)] disabled:opacity-50 disabled:shadow-none";
+  "group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-field border border-transparent bg-[var(--menu-bg-idle,transparent)] px-2.5 py-1 text-left text-xs text-base-content shadow-none transition-[background-color,box-shadow,color,opacity] hover:bg-[var(--menu-bg-hover,transparent)] hover:[box-shadow:var(--menu-shadow-hover,var(--frosted-shadow-hover))] focus-visible:bg-[var(--menu-bg-hover,transparent)] focus-visible:[box-shadow:var(--menu-shadow-hover,var(--frosted-shadow-hover))] active:bg-[var(--menu-bg-active,var(--menu-bg-hover,transparent))] active:[box-shadow:var(--menu-shadow-active,var(--frosted-shadow-pressed))] disabled:bg-[var(--menu-bg-disabled,transparent)] disabled:text-[var(--menu-fg-disabled)] disabled:opacity-50 disabled:shadow-none";
 
 export interface MenuEntryProps
   extends ButtonHTMLAttributes<HTMLButtonElement> {
