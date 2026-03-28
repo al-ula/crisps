@@ -297,33 +297,21 @@
         inset 5px 5px 8px
             color-mix(in oklch, var(--surface-shadow-color) 68%, transparent),
         inset -5px -5px 8px
-            color-mix(
-                in oklch,
-                var(--surface-highlight-color) 42%,
-                transparent
-            ),
+            color-mix(in oklch, var(--surface-highlight-color) 42%, transparent),
         inset 0 0 0 0.5px
             color-mix(in oklch, var(--surface-rim-color) 24%, transparent);
     --frosted-recessed-shadow-open:
         inset 5px 5px 8px
             color-mix(in oklch, var(--surface-shadow-color) 58%, transparent),
         inset -5px -5px 8px
-            color-mix(
-                in oklch,
-                var(--surface-highlight-color) 30%,
-                transparent
-            ),
+            color-mix(in oklch, var(--surface-highlight-color) 30%, transparent),
         inset 0 0 0 0.5px
             color-mix(in oklch, var(--surface-rim-color) 20%, transparent);
     --frosted-recessed-shadow-active:
         inset 5px 5px 9px
             color-mix(in oklch, var(--surface-shadow-color) 64%, transparent),
         inset -5px -5px 9px
-            color-mix(
-                in oklch,
-                var(--surface-highlight-color) 24%,
-                transparent
-            ),
+            color-mix(in oklch, var(--surface-highlight-color) 24%, transparent),
         inset 0 0 0 0.5px
             color-mix(in oklch, var(--surface-rim-color) 16%, transparent);
     --frosted-border-hover: color-mix(
@@ -648,6 +636,34 @@
         z-index: 1;
     }
 
+    .floating-title-badge.badge.badge-frosted {
+        --badge-bg-idle: color-mix(
+            in oklch,
+            var(--color-base-200) 50%,
+            transparent
+        );
+        --badge-border-idle: color-mix(
+            in oklch,
+            var(--color-base-content) 9%,
+            transparent
+        );
+        --badge-bg: var(--badge-bg-idle);
+        --badge-fg: var(--color-base-content);
+        --frosted-current-bg: var(--badge-bg-idle);
+        --frosted-current-border: var(--badge-border-idle);
+        background-color: var(--badge-bg-idle) !important;
+        border-color: var(--badge-border-idle) !important;
+        background-image: none !important;
+        background-size: auto !important;
+        box-shadow: var(--frosted-shadow) !important;
+        backdrop-filter: blur(8px) !important;
+        gap: 0;
+    }
+
+    .floating-title-badge.badge.badge-frosted::after {
+        opacity: var(--frosted-noise-opacity) !important;
+    }
+
     .card.card-frosted {
         --card-bg-idle: var(--frosted-bg-idle);
         --card-border-idle: var(--frosted-border);
@@ -697,7 +713,7 @@
     .card.card-frosted.frosted-menu-shell {
         --card-bg-idle: color-mix(
             in oklch,
-            var(--color-base-200) 6%,
+            var(--color-base-200) 50%,
             transparent
         );
         --card-border-idle: color-mix(
@@ -856,7 +872,7 @@ body {
     min-height: 100%;
     max-width: min(100%, 56rem);
     margin: 0 auto;
-    padding: 3rem 2rem 4rem 5.5rem;
+    padding: 3rem 5.5rem 4rem;
     box-sizing: border-box;
 }
 
@@ -925,7 +941,10 @@ body {
 }
 
 .editor-container.source-mode > .cm-editor .cm-activeLineGutter,
-.editor-container.source-mode .source-editor-host > .cm-editor .cm-activeLineGutter {
+.editor-container.source-mode
+    .source-editor-host
+    > .cm-editor
+    .cm-activeLineGutter {
     background-color: var(--color-codemirror-active-line);
 }
 
@@ -940,12 +959,18 @@ body {
 }
 
 .editor-container.source-mode > .cm-editor .cm-selectionBackground,
-.editor-container.source-mode .source-editor-host > .cm-editor .cm-selectionBackground {
+.editor-container.source-mode
+    .source-editor-host
+    > .cm-editor
+    .cm-selectionBackground {
     background-color: var(--color-codemirror-selection) !important;
 }
 
 .editor-container.source-mode > .cm-editor.cm-focused .cm-selectionBackground,
-.editor-container.source-mode .source-editor-host > .cm-editor.cm-focused .cm-selectionBackground {
+.editor-container.source-mode
+    .source-editor-host
+    > .cm-editor.cm-focused
+    .cm-selectionBackground {
     background-color: var(--color-codemirror-selection-focus) !important;
 }
 
@@ -1090,13 +1115,13 @@ body {
 /* Responsive Overrides */
 @media (max-width: 768px) {
     .editor-container .milkdown .ProseMirror {
-        padding: 3rem 1.25rem 3rem 4.75rem;
+        padding: 3rem 4.75rem;
     }
 }
 
 @media (max-width: 1179px) {
     .app-shell-sidebar-docked .editor-container .milkdown .ProseMirror {
-        padding: 3rem 1.5rem 3rem 4.5rem;
+        padding: 3rem 4.5rem;
     }
 
     .app-shell-sidebar-docked .editor-container.source-mode .cm-content {
@@ -1107,7 +1132,7 @@ body {
 
 @media (max-width: 860px) {
     .app-shell-sidebar-docked .editor-container .milkdown .ProseMirror {
-        padding: 2.75rem 1.1rem 2.75rem 4rem;
+        padding: 2.75rem 4rem;
     }
 
     .app-shell-sidebar-docked .editor-container.source-mode .cm-content {

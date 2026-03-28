@@ -49,6 +49,7 @@ import {
   listenForEditorActions,
 } from "../editor/tauriBridge";
 import { EMPTY_EDITOR_STATE } from "../editor/types";
+import { normalizeImageSrcForMarkdown } from "../editor/imageSrc";
 import type {
   EditorAction,
   EditorAdapter,
@@ -876,7 +877,7 @@ export function MilkdownEditor({
       current
         ? {
             ...current,
-            src: selected,
+            src: normalizeImageSrcForMarkdown(selected),
             fileName: "",
           }
         : current,
@@ -912,7 +913,7 @@ export function MilkdownEditor({
     const value = imagePopupValue;
     if (!value) return;
 
-    const src = value.src.trim();
+    const src = normalizeImageSrcForMarkdown(value.src.trim());
     const alt = value.alt.trim() || undefined;
 
     if (src) {

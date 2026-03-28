@@ -32,6 +32,7 @@ import {
 } from "@milkdown/kit/utils";
 import type { Editor } from "@milkdown/kit/core";
 import { codeBlockView } from "./codeBlockView";
+import { resolveImageSrcForDom } from "./imageSrc";
 import { useLatexFeature as useAppLatexFeature } from "./latexFeature";
 
 const appRuntimeCtx = $ctx(
@@ -80,6 +81,7 @@ export function useImageFeature(
         confirmButton: "Confirm",
         uploadPlaceholderText: "or paste path / URL",
         onUpload,
+        proxyDomURL: resolveImageSrcForDom,
       }));
       ctx.update(imageBlockConfig.key, (value) => ({
         ...value,
@@ -88,6 +90,7 @@ export function useImageFeature(
         captionPlaceholderText: "Write Image Caption",
         uploadPlaceholderText: "or paste path / URL",
         onUpload,
+        proxyDomURL: resolveImageSrcForDom,
       }));
     })
     .use(imageBlockComponent)

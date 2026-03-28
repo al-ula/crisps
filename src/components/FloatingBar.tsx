@@ -11,7 +11,7 @@ import {
 } from "./CascadingMenu";
 
 const TITLE_BADGE_CLASS =
-  "badge badge-frosted pointer-events-auto h-8 max-w-[min(50vw,24rem)] cursor-grab px-4 text-[12px] font-semibold tracking-[0.08em] text-base-content active:cursor-grabbing";
+  "floating-title-badge badge badge-frosted pointer-events-auto h-8 max-w-[min(50vw,24rem)] cursor-grab px-4 text-[12px] font-semibold tracking-[0.08em] text-base-content active:cursor-grabbing";
 const ISLAND_CLASS =
   "card card-frosted pointer-events-auto overflow-visible px-1.5 py-1";
 const BASE_BTN =
