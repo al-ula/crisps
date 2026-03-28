@@ -26,8 +26,21 @@ export function MenuEntry({
 }: MenuEntryProps) {
   const resolvedTrailing =
     trailing === undefined && submenu ? (
-      <span className="text-[15px] leading-none opacity-50" aria-hidden="true">
-        ›
+      <span
+        className="flex h-4 w-3 items-center justify-center text-base-content/50"
+        aria-hidden="true"
+      >
+        <svg
+          viewBox="0 0 12 12"
+          className="h-3 w-3"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4.5 2.5 8 6l-3.5 3.5" />
+        </svg>
       </span>
     ) : (
       trailing
@@ -52,7 +65,11 @@ export function MenuEntry({
         {leading}
         <span className="min-w-0 truncate">{label}</span>
       </span>
-      {resolvedTrailing ?? null}
+      {resolvedTrailing ? (
+        <span className="flex shrink-0 items-center self-center">
+          {resolvedTrailing}
+        </span>
+      ) : null}
     </button>
   );
 }

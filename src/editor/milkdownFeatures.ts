@@ -1,7 +1,6 @@
 import type { LanguageDescription } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import {
-  codeBlockComponent,
   codeBlockConfig,
 } from "@milkdown/kit/component/code-block";
 import {
@@ -32,6 +31,7 @@ import {
   $prose,
 } from "@milkdown/kit/utils";
 import type { Editor } from "@milkdown/kit/core";
+import { codeBlockView } from "./codeBlockView";
 import { useLatexFeature as useAppLatexFeature } from "./latexFeature";
 
 const appRuntimeCtx = $ctx(
@@ -64,7 +64,8 @@ export function useCodeMirrorFeature(editor: Editor, config: AppCodeMirrorConfig
         renderLanguage: config.renderLanguage,
       }));
     })
-    .use(codeBlockComponent);
+    .use(codeBlockConfig)
+    .use(codeBlockView);
 }
 
 export function useImageFeature(

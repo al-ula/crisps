@@ -29,9 +29,9 @@
     --color-error-content: oklch(0.262 0.13 2.8);
     --color-codemirror-gutter-border: oklch(0.4037 0.032 280.15);
     --color-codemirror-gutter-content: oklch(0.5471 0.0343 279.08);
-    --color-codemirror-active-line: oklch(0.2493 0.0305 278.44);
+    --color-codemirror-active-line: oklch(0.278 0.038 278.44 / 0.62);
     --color-codemirror-selection: oklch(0.3292 0.0704 235.52);
-    --color-codemirror-selection-focus: oklch(0.3855 0.0807 233.98);
+    --color-codemirror-selection-focus: oklch(0.47 0.105 233.98);
     --radius-selector: 0.25rem;
     --radius-field: 0.25rem;
     --radius-box: 0.25rem;
@@ -132,9 +132,9 @@
     --color-error-content: oklch(0.99 0.039 19.8);
     --color-codemirror-gutter-border: oklch(0.8083 0.0174 271.2);
     --color-codemirror-gutter-content: oklch(0.6536 0.0269 278.12);
-    --color-codemirror-active-line: oklch(0.8823 0.0114 269.54);
+    --color-codemirror-active-line: oklch(0.845 0.014 269.54 / 0.46);
     --color-codemirror-selection: oklch(0.9322 0.0452 223.13);
-    --color-codemirror-selection-focus: oklch(0.8936 0.0715 223.54);
+    --color-codemirror-selection-focus: oklch(0.84 0.12 223.54);
     --radius-selector: 0.25rem;
     --radius-field: 0.25rem;
     --radius-box: 0.25rem;
@@ -424,7 +424,20 @@
         --btn-border-hover: transparent;
         --btn-border-open: transparent;
         --btn-border-active: transparent;
-        --btn-shadow-idle: var(--frosted-recessed-shadow-idle);
+        --btn-shadow-idle:
+            inset 0 1px 0
+                color-mix(
+                    in oklch,
+                    var(--surface-highlight-color) 34%,
+                    transparent
+                ),
+            inset 1px 0 0
+                color-mix(
+                    in oklch,
+                    var(--surface-highlight-color) 24%,
+                    transparent
+                ),
+            var(--frosted-recessed-shadow-idle);
         --btn-shadow-hover: var(--frosted-recessed-shadow-hover);
         --btn-shadow-open: var(--frosted-recessed-shadow-open);
         --btn-shadow-active: var(--frosted-recessed-shadow-active);
@@ -904,29 +917,35 @@ body {
     background-color: transparent;
 }
 
-.editor-container > .cm-editor .cm-gutters {
+.editor-container.source-mode > .cm-editor .cm-gutters,
+.editor-container.source-mode .source-editor-host > .cm-editor .cm-gutters {
     background-color: var(--color-base-300);
     border-right-color: var(--color-codemirror-gutter-border);
     color: var(--color-codemirror-gutter-content);
 }
 
-.editor-container > .cm-editor .cm-activeLineGutter {
-    background-color: var(--color-neutral);
-}
-
-.editor-container > .cm-editor .cm-activeLine {
+.editor-container.source-mode > .cm-editor .cm-activeLineGutter,
+.editor-container.source-mode .source-editor-host > .cm-editor .cm-activeLineGutter {
     background-color: var(--color-codemirror-active-line);
 }
 
-.editor-container > .cm-editor .cm-cursor {
+.editor-container.source-mode > .cm-editor .cm-activeLine,
+.editor-container.source-mode .source-editor-host > .cm-editor .cm-activeLine {
+    background-color: var(--color-codemirror-active-line);
+}
+
+.editor-container.source-mode > .cm-editor .cm-cursor,
+.editor-container.source-mode .source-editor-host > .cm-editor .cm-cursor {
     border-left-color: var(--color-base-content);
 }
 
-.editor-container > .cm-editor .cm-selectionBackground {
+.editor-container.source-mode > .cm-editor .cm-selectionBackground,
+.editor-container.source-mode .source-editor-host > .cm-editor .cm-selectionBackground {
     background-color: var(--color-codemirror-selection) !important;
 }
 
-.editor-container > .cm-editor.cm-focused .cm-selectionBackground {
+.editor-container.source-mode > .cm-editor.cm-focused .cm-selectionBackground,
+.editor-container.source-mode .source-editor-host > .cm-editor.cm-focused .cm-selectionBackground {
     background-color: var(--color-codemirror-selection-focus) !important;
 }
 
