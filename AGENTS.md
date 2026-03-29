@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Package Manager
+
+- Use `pnpm` instead of `npm` for all package management tasks.
+
 ## UI Theming
 
 - Follow the existing theme system before adding new UI styling.

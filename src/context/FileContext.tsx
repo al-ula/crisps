@@ -3,7 +3,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useReducer,
   useRef,
   useState,
@@ -116,6 +115,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceText, setSourceText] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const currentContentRef = useRef("");
   const savedContentRef = useRef("");
 
@@ -248,7 +248,13 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   }
 
   function toggleSidebar() {
-    setSidebarOpen((v) => !v);
+    setSidebarOpen((current) => {
+      const next = !current;
+      if (next) {
+        setTocItems(extractToc(getCurrentContent()));
+      }
+      return next;
+    });
   }
 
   function toggleSourceMode() {
@@ -311,10 +317,6 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const deleteSourceSelection = useCallback(() => {
     sourceEditorRef.current?.deleteSelection();
   }, []);
-  const tocItems = useMemo(
-    () => extractToc(documentMarkdown),
-    [documentMarkdown],
-  );
 
   async function guardUnsaved(): Promise<boolean> {
     if (!fileState.isDirty) return true;

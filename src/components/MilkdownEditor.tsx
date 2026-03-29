@@ -563,10 +563,6 @@ export function MilkdownEditor({
           const view = ctx.get(editorViewCtx);
           emitSnapshot(view);
           syncLatexPopupState(view, false);
-          syncRenderedHeadingAnchors(
-            view.dom,
-            runtimeRef.current?.getMarkdown() ?? "",
-          );
         });
         listener.markdownUpdated((ctx, markdown) => {
           const view = ctx.get(editorViewCtx);

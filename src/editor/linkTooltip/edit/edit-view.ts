@@ -8,10 +8,11 @@ import type { Mark } from "@milkdown/kit/prose/model";
 import { posToDOMRect } from "@milkdown/kit/prose";
 import { TextSelection, type PluginView } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
-import { createApp, ref, type App, type Ref } from "vue";
+import { createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { appLinkTooltipConfig, appLinkTooltipState, type AppLinkTooltipConfig } from "../slices";
+import { LinkTooltipEdit } from "../../../components/tooltip/LinkTooltipEdit";
 import { findLinkRange } from "../utils";
-import { EditLink } from "./component";
 
 interface EditData {
   from: number;
@@ -36,32 +37,24 @@ const SAFE_AREA = {
 
 export class AppLinkEditTooltip implements PluginView {
   private readonly content: HTMLElement;
+  private readonly root: Root;
   private readonly provider: TooltipProvider;
   private data: EditData = { ...defaultData };
-  private readonly app: App;
-  private readonly config: Ref<AppLinkTooltipConfig>;
-  private readonly name = ref("");
-  private readonly showName = ref(false);
-  private readonly src = ref("");
+  private config: AppLinkTooltipConfig;
+  private name = "";
+  private showName = false;
+  private src = "";
   private removeOutsideListeners: (() => void) | null = null;
 
   constructor(
     private readonly ctx: Ctx,
     view: EditorView,
   ) {
-    this.config = ref(this.ctx.get(appLinkTooltipConfig.key));
+    this.config = this.ctx.get(appLinkTooltipConfig.key);
     this.content = document.createElement("div");
     this.content.className = "app-link-tooltip-root";
-
-    this.app = createApp(EditLink, {
-      config: this.config,
-      onCancel: this.reset,
-      onConfirm: this.confirmEdit,
-      name: this.name,
-      showName: this.showName,
-      src: this.src,
-    });
-    this.app.mount(this.content);
+    this.root = createRoot(this.content);
+    this.render();
 
     this.provider = new TooltipProvider({
       content: this.content,
@@ -83,6 +76,34 @@ export class AppLinkEditTooltip implements PluginView {
     this.provider.update(view);
   }
 
+  private render() {
+    this.root.render(
+      createElement(LinkTooltipEdit, {
+        autoFocusTarget: this.showName ? "name" : "href",
+        focusToken: `${this.data.from}:${this.data.to}:${this.showName ? "name" : "href"}`,
+        href: this.src,
+        inputPlaceholder: this.config.inputPlaceholder,
+        name: this.name,
+        onCancel: this.reset,
+        onConfirm: this.confirmEdit,
+        onHrefChange: this.handleHrefChange,
+        onNameChange: this.handleNameChange,
+        showName: this.showName,
+        textPlaceholder: this.config.textPlaceholder,
+      }),
+    );
+  }
+
+  private readonly handleHrefChange = (value: string) => {
+    this.src = value;
+    this.render();
+  };
+
+  private readonly handleNameChange = (value: string) => {
+    this.name = value;
+    this.render();
+  };
+
   private readonly reset = () => {
     this.provider.hide();
     this.removeOutsideListeners?.();
@@ -91,17 +112,18 @@ export class AppLinkEditTooltip implements PluginView {
       ...state,
       mode: "preview" as const,
     }));
-    this.name.value = "";
-    this.showName.value = false;
-    this.src.value = "";
+    this.name = "";
+    this.showName = false;
+    this.src = "";
     this.data = { ...defaultData };
+    this.render();
   };
 
-  private readonly confirmEdit = (payload: { href: string; name: string }) => {
+  private readonly confirmEdit = () => {
     const view = this.ctx.get(editorViewCtx);
     const { from, to, mark, showName } = this.data;
     const type = linkSchema.type(this.ctx);
-    const link = DOMPurify.sanitize(payload.href).trim();
+    const link = DOMPurify.sanitize(this.src).trim();
     if (!link) return;
     if (mark && String(mark.attrs.href ?? "") === link) {
       this.reset();
@@ -110,7 +132,7 @@ export class AppLinkEditTooltip implements PluginView {
 
     const tr = view.state.tr;
     if (showName) {
-      const label = payload.name.trim() || link;
+      const label = this.name.trim() || link;
       const textNode = view.state.schema.text(label, [type.create({ href: link })]);
       const next = tr.replaceRangeWith(from, to, textNode);
       view.dispatch(
@@ -131,10 +153,10 @@ export class AppLinkEditTooltip implements PluginView {
   };
 
   private enterEditMode(value: string, from: number, to: number, showName = false, name = "") {
-    this.config.value = this.ctx.get(appLinkTooltipConfig.key);
-    this.name.value = name;
-    this.showName.value = showName;
-    this.src.value = value;
+    this.config = this.ctx.get(appLinkTooltipConfig.key);
+    this.name = name;
+    this.showName = showName;
+    this.src = value;
     this.ctx.update(appLinkTooltipState.key, (state) => ({
       ...state,
       mode: "edit" as const,
@@ -152,12 +174,7 @@ export class AppLinkEditTooltip implements PluginView {
     );
 
     this.installOutsideListeners();
-    requestAnimationFrame(() => {
-      const selector = this.showName.value
-        ? "input:first-of-type"
-        : "input";
-      this.content.querySelector<HTMLInputElement>(selector)?.focus();
-    });
+    this.render();
   }
 
   private installOutsideListeners() {
@@ -192,7 +209,7 @@ export class AppLinkEditTooltip implements PluginView {
   }
 
   destroy() {
-    this.app.unmount();
+    this.root.unmount();
     this.provider.destroy();
     this.content.remove();
   }

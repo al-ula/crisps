@@ -4,9 +4,10 @@ import type { Mark } from "@milkdown/kit/prose/model";
 import type { PluginView } from "@milkdown/kit/prose/state";
 import type { EditorView } from "@milkdown/kit/prose/view";
 import { flip, offset, shift } from "@floating-ui/dom";
-import { createApp, ref, type App, type Ref } from "vue";
+import { createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { appLinkTooltipAPI, appLinkTooltipConfig, appLinkTooltipState, type AppLinkTooltipConfig, type AppLinkTooltipState } from "../slices";
-import { PreviewLink } from "./component";
+import { LinkTooltipPreview } from "../../../components/tooltip/LinkTooltipPreview";
 
 const SAFE_AREA = {
   top: 52,
@@ -17,14 +18,14 @@ const SAFE_AREA = {
 
 export class AppLinkPreviewTooltip implements PluginView {
   private readonly content: HTMLElement;
+  private readonly root: Root;
   private readonly provider: TooltipProvider;
   private slice: Slice<AppLinkTooltipState>;
-  private readonly config: Ref<AppLinkTooltipConfig>;
-  private readonly href = ref("");
-  private readonly onOpen = ref<() => void | Promise<void>>(() => {});
-  private readonly onEdit = ref<() => void>(() => {});
-  private readonly onRemove = ref<() => void>(() => {});
-  private readonly app: App;
+  private config: AppLinkTooltipConfig;
+  private href = "";
+  private onOpen: () => void | Promise<void> = () => {};
+  private onEdit: () => void = () => {};
+  private onRemove: () => void = () => {};
   private readonly editorView: EditorView;
   private hovering = false;
 
@@ -33,17 +34,11 @@ export class AppLinkPreviewTooltip implements PluginView {
     view: EditorView,
   ) {
     this.editorView = view;
-    this.config = ref(this.ctx.get(appLinkTooltipConfig.key));
-    this.app = createApp(PreviewLink, {
-      config: this.config,
-      href: this.href,
-      onOpen: this.onOpen,
-      onEdit: this.onEdit,
-      onRemove: this.onRemove,
-    });
+    this.config = this.ctx.get(appLinkTooltipConfig.key);
     this.content = document.createElement("div");
     this.content.className = "app-link-tooltip-root";
-    this.app.mount(this.content);
+    this.root = createRoot(this.content);
+    this.render();
 
     this.provider = new TooltipProvider({
       content: this.content,
@@ -61,6 +56,17 @@ export class AppLinkPreviewTooltip implements PluginView {
 
     this.slice = ctx.use(appLinkTooltipState.key);
     this.slice.on(this.handleStateChange);
+  }
+
+  private render() {
+    this.root.render(
+      createElement(LinkTooltipPreview, {
+        href: this.href,
+        onEdit: this.onEdit,
+        onOpen: this.onOpen,
+        onRemove: this.onRemove,
+      }),
+    );
   }
 
   private readonly handleStateChange = ({ mode }: AppLinkTooltipState) => {
@@ -84,24 +90,25 @@ export class AppLinkPreviewTooltip implements PluginView {
   }
 
   show(mark: Mark, from: number, to: number, rect: DOMRect) {
-    this.config.value = this.ctx.get(appLinkTooltipConfig.key);
-    this.href.value = String(mark.attrs.href ?? "");
-    this.onOpen.value = async () => {
-      const href = this.href.value.trim();
+    this.config = this.ctx.get(appLinkTooltipConfig.key);
+    this.href = String(mark.attrs.href ?? "");
+    this.onOpen = async () => {
+      const href = this.href.trim();
       if (!href) return;
       try {
-        await Promise.resolve(this.config.value.openLink(href));
+        await Promise.resolve(this.config.openLink(href));
       } catch (error) {
         console.error(error);
       }
     };
-    this.onEdit.value = () => {
+    this.onEdit = () => {
       this.ctx.get(appLinkTooltipAPI.key).editLink(mark, from, to);
     };
-    this.onRemove.value = () => {
+    this.onRemove = () => {
       this.ctx.get(appLinkTooltipAPI.key).removeLink(from, to);
       this.hideNow();
     };
+    this.render();
 
     this.provider.show(
       {
@@ -121,7 +128,7 @@ export class AppLinkPreviewTooltip implements PluginView {
   update() {}
 
   destroy() {
-    this.app.unmount();
+    this.root.unmount();
     this.slice.off(this.handleStateChange);
     this.provider.destroy();
     this.content.remove();

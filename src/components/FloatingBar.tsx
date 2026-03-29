@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useFileContext } from "../context/FileContext";
 import type { EditorStateSnapshot } from "../editor/types";
+import { AboutPopup } from "./AboutPopup";
 import {
   CascadingMenu,
   type CascadingMenuItem,
@@ -215,15 +215,10 @@ const MENU_SECTIONS: MenuSection[] = [
       { type: "divider", key: "divider-inline" },
       {
         type: "item",
-        key: "subscript",
-        label: "Subscript",
-        action: "subscript",
-      },
-      {
-        type: "item",
-        key: "superscript",
-        label: "Superscript",
-        action: "superscript",
+        key: "inline-latex",
+        label: "Inline Latex",
+        action: "latex",
+        activeKey: "latex",
       },
     ],
   },
@@ -290,7 +285,7 @@ const MENU_SECTIONS: MenuSection[] = [
     label: "Help",
     items: [
       { type: "item", key: "keyboard-shortcuts", label: "Keyboard Shortcuts" },
-      { type: "item", key: "about", label: "About" },
+      { type: "item", key: "about", label: "About", action: "about" },
     ],
   },
 ];
@@ -302,8 +297,6 @@ const FORMAT_ACTIONS = new Set([
   "strikethrough",
   "latex",
   "code",
-  "subscript",
-  "superscript",
 ]);
 const INSERT_ACTIONS = new Set([
   "insertImage",
@@ -319,6 +312,8 @@ const LIST_ACTIONS = new Set([
   "checklist",
   "removeList",
 ]);
+const VIEW_ACTIONS = new Set(["toggle-sidebar", "source-mode"]);
+const APP_ACTIONS = new Set(["about"]);
 
 export function FloatingBar() {
   const {
@@ -339,6 +334,7 @@ export function FloatingBar() {
   } = useFileContext();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [mainPopupStyle, setMainPopupStyle] = useState<CSSProperties>({});
   const [openPath, setOpenPath] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -366,26 +362,6 @@ export function FloatingBar() {
         else unlisten = fn;
       });
 
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, []);
-
-  const menuItemClickRef = useRef(handleMenuItemClick);
-  useEffect(() => {
-    menuItemClickRef.current = handleMenuItemClick;
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | undefined;
-    listen<string>("menu-action", (e) => {
-      if (!cancelled) menuItemClickRef.current(e.payload);
-    }).then((fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    });
     return () => {
       cancelled = true;
       unlisten?.();
@@ -489,6 +465,8 @@ export function FloatingBar() {
     if (action === "undo") return editorState.canUndo;
     if (action === "redo") return editorState.canRedo;
     if (FILE_ACTIONS.has(action)) return true;
+    if (VIEW_ACTIONS.has(action)) return true;
+    if (APP_ACTIONS.has(action)) return true;
     if (action.startsWith("theme:")) return true;
     if (FORMAT_ACTIONS.has(action)) return true;
     if (action.startsWith("blockType:")) return true;
@@ -514,6 +492,8 @@ export function FloatingBar() {
     if (action === "bulletList") return editorState.listType === "bullet";
     if (action === "orderedList") return editorState.listType === "number";
     if (action === "checklist") return editorState.listType === "check";
+    if (action === "toggle-sidebar") return sidebarOpen;
+    if (action === "source-mode") return sourceMode;
     if (action === "theme:auto") return themeMode === "auto";
     if (action === "theme:light") return themeMode === "light" && !isDarkTheme;
     if (action === "theme:dark") return themeMode === "dark" && isDarkTheme;
@@ -558,6 +538,9 @@ export function FloatingBar() {
         return;
       case "theme:dark":
         setThemeMode("dark");
+        return;
+      case "about":
+        setAboutOpen(true);
         return;
     }
 
@@ -881,6 +864,7 @@ export function FloatingBar() {
           </div>
         </div>
       </div>
+      {aboutOpen ? <AboutPopup onCancel={() => setAboutOpen(false)} /> : null}
     </div>
   );
 }

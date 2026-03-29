@@ -38,23 +38,27 @@ export function LatexPopup({
       style={style}
       onSubmit={handleSubmit}
     >
-      <div className="card card-frosted p-2.5">
-        <div className="flex items-center gap-2">
-          <input
-            ref={inputRef}
-            className="input input-ghost input-sm input-frosted flex-1"
-            value={value.value}
-            placeholder="x^2 + y^2"
-            onChange={(event) => {
-              onChange({ value: event.target.value });
-            }}
-          />
-          <button
-            type="submit"
-            className="btn btn-soft btn-xs btn-frosted btn-recessed"
-          >
-            Apply
-          </button>
+      <div className="editor-floating-panel editor-floating-panel-form editor-floating-panel-compact card card-frosted p-2.5">
+        <div className="editor-floating-rows">
+          <div className="editor-floating-row">
+            <input
+              ref={inputRef}
+              className="editor-floating-input input input-ghost input-sm input-frosted w-full"
+              value={value.value}
+              placeholder="x^2 + y^2"
+              onChange={(event) => {
+                onChange({ value: event.target.value });
+              }}
+            />
+          </div>
+          <div className="editor-floating-row editor-floating-actions">
+            <button
+              type="submit"
+              className="editor-floating-action btn btn-soft btn-xs btn-frosted btn-recessed"
+            >
+              Apply
+            </button>
+          </div>
         </div>
       </div>
     </form>

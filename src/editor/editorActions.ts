@@ -78,9 +78,6 @@ export async function runEditorAction({
     case "italic":
       runtime.action(callCommand(toggleEmphasisCommand.key));
       return;
-    case "subscript":
-    case "superscript":
-      return;
     case "strikethrough":
       runtime.action(callCommand(toggleStrikethroughCommand.key));
       return;

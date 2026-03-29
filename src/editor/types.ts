@@ -15,8 +15,6 @@ export type EditorActionName =
   | "italic"
   | "strikethrough"
   | "latex"
-  | "subscript"
-  | "superscript"
   | "code"
   | "bulletList"
   | "orderedList"

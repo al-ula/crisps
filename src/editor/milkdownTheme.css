@@ -125,6 +125,7 @@
     font-size: 16px;
     line-height: 24px;
     padding: 4px 0;
+    min-height: 32px;
 }
 
 .editor-container .milkdown .ProseMirror blockquote {
@@ -163,51 +164,46 @@
 }
 
 .editor-container .milkdown .app-link-tooltip {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: min(28rem, calc(100vw - 16px));
     padding: 8px;
     border-radius: var(--radius-box);
-    border: 1px solid color-mix(in oklch, var(--editor-outline) 32%, transparent);
-    background:
+    border: 1px solid
+        var(
+            --editor-link-tooltip-border,
+            color-mix(in oklch, var(--editor-outline) 32%, transparent)
+        );
+    background: var(
+        --editor-link-tooltip-bg,
         linear-gradient(
             180deg,
             color-mix(in oklch, var(--editor-surface-low) 82%, transparent),
             color-mix(in oklch, var(--editor-surface) 92%, transparent)
-        );
-    box-shadow:
+        )
+    );
+    box-shadow: var(
+        --editor-link-tooltip-shadow,
         inset 0 1px 0 color-mix(in oklch, white 14%, transparent),
-        var(--editor-shadow-2);
+        var(--editor-shadow-2)
+    );
     backdrop-filter: blur(20px);
     color: var(--editor-text);
 }
 
-.editor-container .milkdown .app-link-tooltip-fields {
+.editor-container .milkdown .app-link-tooltip-preview {
     display: flex;
-    min-width: 0;
-    flex: 1;
     align-items: center;
     gap: 8px;
+    min-width: min(28rem, calc(100vw - 16px));
 }
 
-.editor-container .milkdown .app-link-tooltip-fields-stack {
-    flex-direction: column;
-    align-items: stretch;
+.editor-container .milkdown .app-link-tooltip-edit {
+    min-width: 0;
 }
 
 .editor-container .milkdown .app-link-tooltip-edit-create {
-    min-width: min(24rem, calc(100vw - 16px));
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.editor-container .milkdown .app-link-tooltip-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    --editor-floating-gap: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    min-width: 0;
 }
 
 .editor-container .milkdown .app-link-tooltip-icon,
@@ -222,8 +218,14 @@
 }
 
 .editor-container .milkdown .app-link-tooltip-icon {
-    background: color-mix(in oklch, var(--editor-hover) 82%, transparent);
-    color: color-mix(in oklch, var(--editor-text) 76%, transparent);
+    background: var(
+        --editor-link-tooltip-icon-bg,
+        color-mix(in oklch, var(--editor-hover) 82%, transparent)
+    );
+    color: var(
+        --editor-link-tooltip-icon-fg,
+        color-mix(in oklch, var(--editor-text) 76%, transparent)
+    );
 }
 
 .editor-container .milkdown .app-link-tooltip-icon svg,
@@ -233,9 +235,19 @@
 }
 
 .editor-container .milkdown .app-link-tooltip-action {
-    border: 1px solid color-mix(in oklch, var(--editor-outline) 28%, transparent);
-    background: color-mix(in oklch, var(--editor-surface-low) 88%, transparent);
-    color: color-mix(in oklch, var(--editor-text) 82%, transparent);
+    border: 1px solid
+        var(
+            --editor-link-tooltip-action-border,
+            color-mix(in oklch, var(--editor-outline) 28%, transparent)
+        );
+    background: var(
+        --editor-link-tooltip-action-bg,
+        color-mix(in oklch, var(--editor-surface-low) 88%, transparent)
+    );
+    color: var(
+        --editor-link-tooltip-action-fg,
+        color-mix(in oklch, var(--editor-text) 82%, transparent)
+    );
     transition:
         background-color 0.18s ease,
         border-color 0.18s ease,
@@ -243,10 +255,14 @@
         transform 0.18s ease;
 }
 
-.editor-container .milkdown .app-link-tooltip-url,
-.editor-container .milkdown .app-link-tooltip-input {
+.editor-container .milkdown .app-link-tooltip-url {
     min-width: 0;
     flex: 1;
+}
+
+.editor-container .milkdown .app-link-tooltip-input {
+    min-width: 0;
+    width: 100%;
 }
 
 .editor-container .milkdown .app-link-tooltip-url {
@@ -278,9 +294,15 @@
 }
 
 .editor-container .milkdown .app-link-tooltip-action:hover {
-    background: color-mix(in oklch, var(--editor-hover) 84%, transparent);
-    border-color: color-mix(in oklch, var(--editor-accent) 38%, transparent);
-    color: var(--editor-text);
+    background: var(
+        --editor-link-tooltip-action-bg-hover,
+        color-mix(in oklch, var(--editor-hover) 84%, transparent)
+    );
+    border-color: var(
+        --editor-link-tooltip-action-border-hover,
+        color-mix(in oklch, var(--editor-accent) 38%, transparent)
+    );
+    color: var(--editor-link-tooltip-action-fg-hover, var(--editor-text));
 }
 
 .editor-container .milkdown .app-link-tooltip-action:active,
@@ -290,15 +312,25 @@
 
 .editor-container .milkdown .app-link-tooltip-url:focus-visible {
     border-radius: var(--radius-field);
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--editor-accent) 32%, transparent);
+    box-shadow: var(
+        --editor-link-tooltip-focus-ring,
+        0 0 0 2px color-mix(in oklch, var(--editor-accent) 32%, transparent)
+    );
 }
 
 .editor-container .milkdown .app-link-tooltip-input {
     height: 36px;
     padding: 0 12px;
     border-radius: var(--radius-field);
-    border: 1px solid color-mix(in oklch, var(--editor-outline) 26%, transparent);
-    background: color-mix(in oklch, var(--editor-surface-low) 86%, transparent);
+    border: 1px solid
+        var(
+            --editor-link-tooltip-input-border,
+            color-mix(in oklch, var(--editor-outline) 26%, transparent)
+        );
+    background: var(
+        --editor-link-tooltip-input-bg,
+        color-mix(in oklch, var(--editor-surface-low) 86%, transparent)
+    );
     color: var(--editor-text);
     font-family: var(--editor-font-body);
     font-size: 14px;
@@ -311,8 +343,14 @@
 }
 
 .editor-container .milkdown .app-link-tooltip-input:focus {
-    border-color: color-mix(in oklch, var(--editor-accent) 52%, transparent);
-    box-shadow: 0 0 0 1px color-mix(in oklch, var(--editor-accent) 22%, transparent);
+    border-color: var(
+        --editor-link-tooltip-input-border-focus,
+        color-mix(in oklch, var(--editor-accent) 52%, transparent)
+    );
+    box-shadow: var(
+        --editor-link-tooltip-input-shadow-focus,
+        0 0 0 1px color-mix(in oklch, var(--editor-accent) 22%, transparent)
+    );
 }
 
 .editor-container .milkdown .app-link-tooltip-confirm {

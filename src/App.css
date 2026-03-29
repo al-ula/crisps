@@ -731,6 +731,85 @@
         z-index: 1;
     }
 
+    .editor-floating-panel {
+        --editor-floating-panel-bg: color-mix(
+            in oklch,
+            var(--frosted-bg-idle) 88%,
+            var(--frosted-bg-strong)
+        );
+        --editor-floating-panel-border: var(--frosted-border);
+        --editor-floating-panel-shadow: var(--frosted-shadow-hover);
+        border: 1px solid var(--editor-floating-panel-border);
+        border-radius: var(--radius-box);
+        background-color: var(--editor-floating-panel-bg);
+        color: var(--color-base-content);
+        box-shadow: var(--editor-floating-panel-shadow);
+        backdrop-filter: blur(10px);
+    }
+
+    .editor-floating-panel-form {
+        --editor-floating-gap: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: var(--editor-floating-gap);
+        align-items: stretch;
+    }
+
+    .editor-floating-panel-compact {
+        width: min(20rem, calc(100vw - 16px));
+    }
+
+    .editor-floating-panel-wide {
+        width: min(24rem, calc(100vw - 16px));
+    }
+
+    .editor-floating-rows {
+        --editor-floating-rows-gap: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: var(--editor-floating-rows-gap);
+        min-width: 0;
+        width: 100%;
+    }
+
+    .editor-floating-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .editor-floating-actions {
+        --editor-floating-actions-gap: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: var(--editor-floating-actions-gap);
+    }
+
+    .editor-floating-action.btn.btn-frosted {
+        --btn-shadow-idle: var(--frosted-recessed-shadow-idle);
+        --btn-shadow-hover: var(--frosted-recessed-shadow-hover);
+        --btn-shadow-open: var(--frosted-recessed-shadow-open);
+        --btn-shadow-active: var(--frosted-recessed-shadow-active);
+    }
+
+    .editor-floating-input.input.input-frosted {
+        --field-bg-idle: color-mix(in oklch, var(--frosted-bg-idle) 92%, transparent);
+        --field-bg-hover: color-mix(in oklch, var(--frosted-bg-strong) 90%, transparent);
+        --field-bg-focus: color-mix(in oklch, var(--frosted-bg-open) 84%, transparent);
+        --field-shadow-idle: var(--frosted-shadow);
+        --field-shadow-focus: var(--frosted-shadow-hover);
+    }
+
+    .editor-floating-link:focus-visible,
+    .editor-floating-action.btn:focus-visible,
+    .editor-floating-input.input:focus,
+    .editor-floating-input.input:focus-within {
+        outline: none;
+    }
+
     .frosted-toast-shell {
         --toast-tint: color-mix(in oklch, var(--color-info) 44%, transparent);
         --toast-rim: color-mix(in oklch, var(--color-info) 52%, var(--frosted-border));

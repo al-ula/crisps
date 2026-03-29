@@ -21,6 +21,7 @@ import type {
 import { $view } from "@milkdown/kit/utils";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { flushSync } from "react-dom";
 import {
   CodeBlockLanguageDropdown,
   type CodeBlockLanguageDropdownItem,
@@ -136,24 +137,26 @@ class AppCodeMirrorBlock implements NodeView {
   private render() {
     this.dom.classList.toggle("selected", this.selected);
 
-    this.root.render(
-      <CodeBlockChrome
-        codemirror={this.cm}
-        copyText={this.config.copyText}
-        language={this.language}
-        rawLanguage={this.rawLanguage}
-        preview={this.preview}
-        previewOnlyMode={this.previewOnlyMode}
-        readonly={!this.view.editable}
-        text={this.text}
-        onCopy={this.handleCopy}
-        onLanguageSelect={this.setLanguage}
-        onTogglePreview={() => {
-          this.previewOnlyMode = !this.previewOnlyMode;
-          this.render();
-        }}
-      />,
-    );
+    flushSync(() => {
+      this.root.render(
+        <CodeBlockChrome
+          codemirror={this.cm}
+          copyText={this.config.copyText}
+          language={this.language}
+          rawLanguage={this.rawLanguage}
+          preview={this.preview}
+          previewOnlyMode={this.previewOnlyMode}
+          readonly={!this.view.editable}
+          text={this.text}
+          onCopy={this.handleCopy}
+          onLanguageSelect={this.setLanguage}
+          onTogglePreview={() => {
+            this.previewOnlyMode = !this.previewOnlyMode;
+            this.render();
+          }}
+        />,
+      );
+    });
   }
 
   private forwardUpdate = (update: ViewUpdate) => {
@@ -332,11 +335,17 @@ class AppCodeMirrorBlock implements NodeView {
     if (node.type !== this.node.type) return false;
     if (this.updating) return true;
 
+    const previousLanguage = String(this.node.attrs.language ?? "");
+    const nextLanguage = String(node.attrs.language ?? "");
+    const languageChanged = previousLanguage !== nextLanguage;
+    const textChanged = this.text !== node.textContent;
+    const readonlyChanged = this.view.editable === this.cm.state.readOnly;
+
     this.node = node;
     this.text = node.textContent;
     this.syncLanguage();
 
-    if (this.view.editable === this.cm.state.readOnly) {
+    if (readonlyChanged) {
       this.cm.dispatch({
         effects: this.readOnlyConf.reconfigure(
           EditorState.readOnly.of(!this.view.editable),
@@ -349,12 +358,16 @@ class AppCodeMirrorBlock implements NodeView {
       this.updating = true;
       this.cm.dispatch({
         changes: { from: change.from, to: change.to, insert: change.text },
-        scrollIntoView: true,
       });
       this.updating = false;
     }
 
-    this.updatePreview();
+    if (languageChanged || textChanged) {
+      this.updatePreview();
+    } else if (readonlyChanged) {
+      this.render();
+    }
+
     return true;
   }
 
