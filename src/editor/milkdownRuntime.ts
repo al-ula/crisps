@@ -7,6 +7,8 @@ import {
   editorViewCtx,
   editorViewOptionsCtx,
   rootCtx,
+  schemaCtx,
+  serializerCtx,
 } from "@milkdown/kit/core";
 import { clipboard } from "@milkdown/kit/plugin/clipboard";
 import { history } from "@milkdown/kit/plugin/history";
@@ -21,6 +23,7 @@ import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { gfm } from "@milkdown/kit/preset/gfm";
 import { getMarkdown, replaceAll } from "@milkdown/kit/utils";
 import type { EditorView } from "@milkdown/kit/prose/view";
+import type { Slice } from "@milkdown/kit/prose/model";
 import type { LanguageDescription } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import {
@@ -60,6 +63,8 @@ export interface MilkdownRuntime {
   replaceMarkdown: (markdown: string) => void;
   focus: () => void;
   setReadonly: (value: boolean) => void;
+  copySelection: () => Promise<boolean>;
+  cutSelection: () => Promise<boolean>;
   blockEdit: {
     getActiveBlock: () => ActiveBlock | null;
     getActiveBlockElement: () => HTMLElement | null;
@@ -91,6 +96,11 @@ export interface MilkdownRuntimeOptions {
   extensions: Extension[];
   languages: LanguageDescription[];
   renderLanguage: (language: string, selected: boolean) => string;
+  onWriteClipboard?: (payload: {
+    text: string;
+    operation: "copy" | "cut";
+    source: "selection" | "code-block";
+  }) => Promise<void>;
   onUpload: (file: File) => Promise<string>;
   configureListeners?: (listener: ListenerManager) => void;
 }
@@ -106,6 +116,12 @@ export function createMilkdownRuntime(
       ctx.set(defaultValueCtx, options.defaultValue ?? "");
       ctx.set(editorViewOptionsCtx, {
         editable: () => editable,
+        handleDOMEvents: {
+          copy: (view, event) =>
+            handleSelectionClipboard(ctx, view, event, "copy", options),
+          cut: (view, event) =>
+            handleSelectionClipboard(ctx, view, event, "cut", options),
+        },
       });
       ctx.update(indentConfig.key, (value) => ({
         ...value,
@@ -151,6 +167,14 @@ export function createMilkdownRuntime(
         ctx.get(editorViewCtx).focus();
       });
     },
+    copySelection: () =>
+      editor.action((ctx) =>
+        writeSelectionToClipboard(ctx, ctx.get(editorViewCtx), "copy", options),
+      ),
+    cutSelection: () =>
+      editor.action((ctx) =>
+        writeSelectionToClipboard(ctx, ctx.get(editorViewCtx), "cut", options),
+      ),
     blockEdit: {
       getActiveBlock: () =>
         editor.action((ctx) => findActiveBlock(ctx.get(editorViewCtx).state)),
@@ -207,4 +231,72 @@ export function createMilkdownRuntime(
 
 export function getEditorView(ctx: Ctx): EditorView {
   return ctx.get(editorViewCtx);
+}
+
+function serializeSelection(ctx: Ctx, slice: Slice): string {
+  const schema = ctx.get(schemaCtx);
+  const serializer = ctx.get(serializerCtx);
+  const doc = schema.topNodeType.createAndFill(undefined, slice.content);
+  if (!doc) return "";
+  return serializer(doc);
+}
+
+function removeSelection(view: EditorView) {
+  view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
+  view.focus();
+}
+
+function handleSelectionClipboard(
+  ctx: Ctx,
+  view: EditorView,
+  event: Event,
+  operation: "copy" | "cut",
+  options: MilkdownRuntimeOptions,
+): boolean {
+  const clipboardEvent = event as ClipboardEvent;
+  const text = serializeSelection(ctx, view.state.selection.content());
+  if (!text) return false;
+
+  const clipboardData = clipboardEvent.clipboardData;
+  if (!clipboardData) return false;
+
+  clipboardData.clearData();
+  clipboardData.setData("text/plain", text);
+  clipboardEvent.preventDefault();
+  void options.onWriteClipboard?.({
+    text,
+    operation,
+    source: "selection",
+  });
+  if (operation === "cut") {
+    removeSelection(view);
+  }
+  return true;
+}
+
+async function writeSelectionToClipboard(
+  ctx: Ctx,
+  view: EditorView,
+  operation: "copy" | "cut",
+  options: MilkdownRuntimeOptions,
+): Promise<boolean> {
+  const text = serializeSelection(ctx, view.state.selection.content());
+  if (!text) return false;
+
+  if (options.onWriteClipboard) {
+    await options.onWriteClipboard({
+      text,
+      operation,
+      source: "selection",
+    });
+  } else {
+    await navigator.clipboard.writeText(text);
+  }
+
+  if (operation === "cut") {
+    removeSelection(view);
+  } else {
+    view.focus();
+  }
+  return true;
 }

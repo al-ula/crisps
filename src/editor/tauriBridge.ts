@@ -12,13 +12,23 @@ type TauriEditorActionPayload = {
 export function createTauriEditorAdapter(options: {
   setMarkdown: (markdown: string) => void;
   getMarkdown: () => string;
+  getSelectedText: () => string;
+  deleteSelection: () => void;
+  copySelection: () => Promise<boolean>;
+  cutSelection: () => Promise<boolean>;
   focus: () => void;
+  scrollToHeading?: (headingId: string) => boolean;
   runAction: (action: EditorAction) => Promise<void>;
 }): EditorAdapter {
   return {
     setMarkdown: options.setMarkdown,
     getMarkdown: options.getMarkdown,
+    getSelectedText: options.getSelectedText,
+    deleteSelection: options.deleteSelection,
+    copySelection: options.copySelection,
+    cutSelection: options.cutSelection,
     focus: options.focus,
+    scrollToHeading: options.scrollToHeading,
     async runAction(action) {
       await options.runAction(action);
     },

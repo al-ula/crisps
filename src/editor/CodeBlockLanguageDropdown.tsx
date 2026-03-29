@@ -9,7 +9,7 @@ import {
 } from "react";
 
 const DEFAULT_TRIGGER_CLASS =
-  "btn btn-ghost btn-xs btn-frosted btn-recessed dropdown-frosted-trigger h-[26px] min-h-[26px] w-auto max-w-36 justify-between gap-1.5 px-2 font-normal";
+  "btn btn-ghost btn-xs btn-frosted btn-recessed btn-recessed-interactive dropdown-frosted-trigger h-[26px] min-h-[26px] w-auto max-w-36 justify-between gap-1.5 px-2 font-normal";
 const DEFAULT_MENU_CLASS =
   "dropdown-content card card-frosted frosted-menu-shell absolute left-0 top-full z-[1020] mt-1 flex flex-col overflow-hidden p-1 shadow-none";
 const DEFAULT_MENU_MAX_HEIGHT = 450;
@@ -384,7 +384,7 @@ export function CodeBlockLanguageDropdown<T extends string>({
                     className={[
                       MENU_ROW_WRAPPER_CLASS,
                       item.value === value
-                        ? "bg-[var(--menu-bg-open,var(--menu-bg-hover,transparent))] [box-shadow:var(--menu-shadow-open,var(--frosted-shadow-open))]"
+                        ? "menu-recessed-open"
                         : "",
                       item.disabled
                         ? "bg-[var(--menu-bg-disabled,transparent)] text-[var(--menu-fg-disabled)] opacity-50 shadow-none"

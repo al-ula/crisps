@@ -21,8 +21,8 @@ const BLOCK_TYPE_OPTIONS: Array<{
 ];
 
 const TOOLBAR_BTN =
-  "btn btn-ghost btn-xs btn-square btn-frosted btn-recessed h-[26px] min-h-[26px] w-7";
-const TOOLBAR_BTN_ACTIVE = `${TOOLBAR_BTN} btn-active btn-recessed-open`;
+  "btn btn-ghost btn-xs btn-square btn-frosted btn-recessed btn-recessed-interactive h-[26px] min-h-[26px] w-7";
+const TOOLBAR_BTN_ACTIVE = `${TOOLBAR_BTN} btn-active`;
 interface SelectionToolbarProps {
   editorState: EditorStateSnapshot;
   style: CSSProperties;

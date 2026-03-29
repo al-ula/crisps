@@ -45,6 +45,7 @@ import {
 } from "../editor/editorActions";
 import { joinFrontmatter, splitFrontmatter } from "../editor/frontmatter";
 import { createMilkdownRuntime } from "../editor/milkdownRuntime";
+import { setCodeBlockCopyHandler } from "../editor/clipboardBridge";
 import {
   createTauriEditorAdapter,
   emitEditorState,
@@ -52,6 +53,7 @@ import {
 } from "../editor/tauriBridge";
 import { EMPTY_EDITOR_STATE } from "../editor/types";
 import { normalizeImageSrcForMarkdown } from "../editor/imageSrc";
+import { extractToc } from "../editor/toc";
 import type {
   EditorAction,
   EditorAdapter,
@@ -67,6 +69,11 @@ import { SelectionToolbar } from "./SelectionToolbar";
 interface MilkdownEditorProps {
   isDarkTheme: boolean;
   onChange: (markdown: string) => void;
+  onWriteClipboard?: (payload: {
+    text: string;
+    operation: "copy" | "cut";
+    source: "selection" | "code-block";
+  }) => Promise<void>;
   onReady: (adapter: EditorAdapter | null) => void;
 }
 
@@ -94,6 +101,7 @@ const BLOCK_DRAG_MIME = "application/x-crisps-block";
 export function MilkdownEditor({
   isDarkTheme,
   onChange,
+  onWriteClipboard,
   onReady,
 }: MilkdownEditorProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -112,6 +120,7 @@ export function MilkdownEditor({
   const viewRef = useRef<EditorView | null>(null);
   const frontmatterRef = useRef("");
   const onChangeRef = useRef(onChange);
+  const onWriteClipboardRef = useRef(onWriteClipboard);
   const suppressNextMarkdownUpdateRef = useRef(false);
   const suppressMarkdownTimerRef = useRef<number | null>(null);
   const editorChromeRefreshFrameRef = useRef<number | null>(null);
@@ -192,6 +201,25 @@ export function MilkdownEditor({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    onWriteClipboardRef.current = onWriteClipboard;
+  }, [onWriteClipboard]);
+
+  useEffect(() => {
+    setCodeBlockCopyHandler((text) => {
+      return (
+        onWriteClipboardRef.current?.({
+          text,
+          operation: "copy",
+          source: "code-block",
+        }) ?? Promise.resolve()
+      );
+    });
+    return () => {
+      setCodeBlockCopyHandler(null);
+    };
+  }, []);
 
   useEffect(() => {
     blockMenuStateRef.current = blockMenuState;
@@ -527,12 +555,18 @@ export function MilkdownEditor({
       extensions: getCodeBlockExtensions(isDarkTheme),
       languages: CODE_BLOCK_CODEMIRROR_LANGUAGES,
       renderLanguage: renderCodeBlockLanguage,
+      onWriteClipboard: (payload) =>
+        onWriteClipboardRef.current?.(payload) ?? Promise.resolve(),
       onUpload: readFileAsDataUrl,
       configureListeners: (listener) => {
         listener.mounted((ctx) => {
           const view = ctx.get(editorViewCtx);
           emitSnapshot(view);
           syncLatexPopupState(view, false);
+          syncRenderedHeadingAnchors(
+            view.dom,
+            runtimeRef.current?.getMarkdown() ?? "",
+          );
         });
         listener.focus((ctx) => {
           const view = ctx.get(editorViewCtx);
@@ -553,11 +587,16 @@ export function MilkdownEditor({
           const view = ctx.get(editorViewCtx);
           emitSnapshot(view);
           syncLatexPopupState(view, false);
+          syncRenderedHeadingAnchors(
+            view.dom,
+            runtimeRef.current?.getMarkdown() ?? "",
+          );
         });
         listener.markdownUpdated((ctx, markdown) => {
           const view = ctx.get(editorViewCtx);
           emitSnapshot(view);
           syncLatexPopupState(view, false);
+          syncRenderedHeadingAnchors(view.dom, markdown);
           if (suppressNextMarkdownUpdateRef.current) {
             suppressNextMarkdownUpdateRef.current = false;
             if (suppressMarkdownTimerRef.current != null) {
@@ -589,11 +628,67 @@ export function MilkdownEditor({
       runtime.replaceMarkdown(parts.body);
     };
 
-    const getMarkdown = () =>
-      joinFrontmatter(frontmatterRef.current, runtime.getMarkdown());
+      const getMarkdown = () =>
+        joinFrontmatter(frontmatterRef.current, runtime.getMarkdown());
 
-    const focus = () => {
-      runtime.focus();
+      const getSelectedText = () => {
+        const currentView = viewRef.current;
+        return currentView ? getSelectedEditorText(currentView) : "";
+      };
+
+      const deleteSelection = () => {
+        const currentView = viewRef.current;
+        if (!currentView) return;
+        const { selection } = currentView.state;
+        if (!(selection instanceof TextSelection) || selection.empty) return;
+        currentView.dispatch(
+          currentView.state.tr.deleteSelection().scrollIntoView(),
+        );
+        currentView.focus();
+      };
+
+      const focus = () => {
+        runtime.focus();
+      };
+
+      const copySelection = () => runtime.copySelection();
+
+      const cutSelection = () => runtime.cutSelection();
+
+    const scrollToHeading = (headingId: string) => {
+      const view = viewRef.current;
+      if (!view) return false;
+
+      const tocItems = extractToc(getMarkdown());
+      const targetIndex = tocItems.findIndex((item) => item.id === headingId);
+      if (targetIndex === -1) return false;
+
+      const headingPositions = getHeadingSelectionPositions(view.state);
+      const targetPosition = headingPositions[targetIndex];
+
+      if (targetPosition != null) {
+        const selection = TextSelection.near(
+          view.state.doc.resolve(targetPosition),
+        );
+        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+        window.requestAnimationFrame(() => {
+          const selector = `[data-toc-id="${escapeTocSelectorValue(headingId)}"]`;
+          const stampedElement = view.dom.querySelector<HTMLElement>(selector);
+          const fallbackElement = getRenderedHeadingElements(view.dom)[targetIndex];
+          const element = stampedElement ?? fallbackElement;
+          element?.scrollIntoView({ block: "center", behavior: "smooth" });
+        });
+        return true;
+      }
+
+      const selector = `[data-toc-id="${escapeTocSelectorValue(headingId)}"]`;
+      const stampedElement = view.dom.querySelector<HTMLElement>(selector);
+      const fallbackElement = getRenderedHeadingElements(view.dom)[targetIndex];
+      const element = stampedElement ?? fallbackElement;
+      if (!element) return false;
+
+      element.scrollIntoView({ block: "center", behavior: "smooth" });
+      return true;
     };
 
     void runtime.create().then(async () => {
@@ -758,7 +853,12 @@ export function MilkdownEditor({
         createTauriEditorAdapter({
           setMarkdown,
           getMarkdown,
+          getSelectedText,
+          deleteSelection,
+          copySelection,
+          cutSelection,
           focus,
+          scrollToHeading,
           runAction: async (action) => {
             await performEditorAction(runtime, action, true);
           },
@@ -770,6 +870,7 @@ export function MilkdownEditor({
       });
 
       scheduleEditorChromeRefresh(view);
+      syncRenderedHeadingAnchors(view.dom, runtime.getMarkdown());
     });
 
     return () => {
@@ -1451,6 +1552,51 @@ function buildEditorState(view: EditorView): EditorStateSnapshot {
   };
 }
 
+function syncRenderedHeadingAnchors(root: HTMLElement, markdown: string): void {
+  const headings = getRenderedHeadingElements(root);
+  const tocItems = extractToc(markdown);
+
+  for (const heading of headings) {
+    delete heading.dataset.tocId;
+    delete heading.dataset.tocIndex;
+  }
+
+  headings.forEach((heading, index) => {
+    const item = tocItems[index];
+    if (!item) return;
+    heading.dataset.tocId = item.id;
+    heading.dataset.tocIndex = String(item.index);
+  });
+}
+
+function escapeTocSelectorValue(value: string): string {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+  return value.replace(/["\\]/g, "\\$&");
+}
+
+function getRenderedHeadingElements(root: ParentNode): HTMLElement[] {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+  );
+}
+
+function getHeadingSelectionPositions(state: EditorState): number[] {
+  const positions: number[] = [];
+
+  state.doc.descendants((node, pos) => {
+    if (node.type.name !== "heading") {
+      return true;
+    }
+
+    positions.push(Math.min(pos + 1, state.doc.content.size));
+    return true;
+  });
+
+  return positions;
+}
+
 function buildSelectionToolbarState(
   view: EditorView,
   editorState: EditorStateSnapshot,
@@ -1500,6 +1646,15 @@ function buildSelectionToolbarState(
     style: { left, top },
     visible: true,
   };
+}
+
+function getSelectedEditorText(view: EditorView): string {
+  const { selection, doc } = view.state;
+  if (!(selection instanceof TextSelection) || selection.empty) {
+    return "";
+  }
+
+  return doc.textBetween(selection.from, selection.to);
 }
 
 function getBlockState(state: EditorState): {

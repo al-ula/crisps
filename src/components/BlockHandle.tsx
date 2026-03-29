@@ -37,7 +37,7 @@ export function BlockHandle({
   const ghostButtonClass =
     "btn btn-ghost btn-xs btn-square btn-frosted block-handle-ghost-btn h-[26px] min-h-[26px] w-[26px]";
   const menuButtonClass = menuDisabled
-    ? "btn btn-soft btn-active btn-xs btn-square btn-frosted btn-recessed btn-recessed-open h-[26px] min-h-[26px] w-[26px] opacity-100"
+    ? "btn btn-soft btn-xs btn-square btn-frosted btn-recessed btn-recessed-all h-[26px] min-h-[26px] w-[26px] opacity-100"
     : ghostButtonClass;
 
   return (

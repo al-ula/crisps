@@ -60,13 +60,20 @@ export interface SourceEditorStateSnapshot {
 
 export interface SourceEditorController {
   focus: () => void;
+  getSelectedText: () => string;
+  deleteSelection: () => void;
   runAction: (action: SourceEditorAction) => void;
 }
 
 export interface EditorAdapter {
   setMarkdown: (markdown: string) => void;
   getMarkdown: () => string;
+  getSelectedText: () => string;
+  deleteSelection: () => void;
+  copySelection: () => Promise<boolean>;
+  cutSelection: () => Promise<boolean>;
   focus: () => void;
+  scrollToHeading?: (headingId: string) => boolean;
   runAction: (action: EditorAction) => Promise<void>;
   subscribeState: (
     listener: (state: EditorStateSnapshot) => void,

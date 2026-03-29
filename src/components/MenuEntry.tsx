@@ -51,7 +51,7 @@ export function MenuEntry({
       className={[
         MENU_ENTRY_CLASS,
         active
-          ? "bg-(--menu-bg-open,var(--menu-bg-hover,transparent)) [box-shadow:var(--menu-shadow-open,var(--frosted-shadow-open))]"
+          ? "menu-recessed-open"
           : "",
         danger ? "text-error" : "",
         className,

@@ -119,6 +119,18 @@ export function SourceEditor({
     viewRef.current = view;
     onReady({
       focus: () => view.focus(),
+      getSelectedText: () => {
+        const { from, to } = view.state.selection.main;
+        return from === to ? "" : view.state.sliceDoc(from, to);
+      },
+      deleteSelection: () => {
+        const { from, to } = view.state.selection.main;
+        if (from === to) return;
+        view.dispatch({
+          changes: { from, to, insert: "" },
+          selection: { anchor: from },
+        });
+      },
       runAction: (action: SourceEditorAction) => {
         if (action === "undo") {
           undo(view);

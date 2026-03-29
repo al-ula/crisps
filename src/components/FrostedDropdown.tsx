@@ -9,7 +9,7 @@ import {
 import { MenuEntry } from "./MenuEntry";
 
 const DEFAULT_TRIGGER_CLASS =
-  "btn btn-ghost btn-xs btn-frosted btn-recessed dropdown-frosted-trigger h-[26px] min-h-[26px] w-auto max-w-36 justify-between gap-1.5 px-2 font-normal";
+  "btn btn-ghost btn-xs btn-frosted btn-recessed btn-recessed-interactive dropdown-frosted-trigger h-[26px] min-h-[26px] w-auto max-w-36 justify-between gap-1.5 px-2 font-normal";
 const DEFAULT_MENU_CLASS =
   "dropdown-content card card-frosted frosted-menu-shell absolute left-0 top-full z-[1020] mt-1 overflow-y-auto overflow-x-hidden p-1 shadow-none";
 const DEFAULT_MENU_MAX_HEIGHT = 450;

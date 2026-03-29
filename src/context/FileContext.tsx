@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -18,6 +19,7 @@ import {
   type SourceEditorController,
   type SourceEditorStateSnapshot,
 } from "../editor/types";
+import { extractToc, type TocItem } from "../editor/toc";
 
 interface FileState {
   currentPath: string | null;
@@ -55,6 +57,14 @@ interface FileContextValue {
   sourceEditorState: SourceEditorStateSnapshot;
   sourceMode: boolean;
   sourceText: string;
+  documentMarkdown: string;
+  tocItems: TocItem[];
+  getEditorSelection: () => string;
+  deleteEditorSelection: () => void;
+  copyEditorSelection: () => Promise<boolean>;
+  cutEditorSelection: () => Promise<boolean>;
+  getSourceSelection: () => string;
+  deleteSourceSelection: () => void;
   updateSourceText: (text: string) => void;
   handleEditorChange: (markdown: string) => void;
   handleEditorAction: (action: EditorAction) => Promise<void>;
@@ -63,6 +73,7 @@ interface FileContextValue {
   setThemeMode: (mode: "auto" | "light" | "dark") => void;
   sidebarOpen: boolean;
   toggleSidebar: () => void;
+  navigateToHeading: (headingId: string) => boolean;
   handleNew: () => Promise<void>;
   handleOpen: () => Promise<void>;
   handleSave: () => Promise<void>;
@@ -275,6 +286,35 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         focused: sourceEditorState.focused,
       }
     : editorState;
+  const documentMarkdown = sourceMode
+    ? sourceText
+    : currentContentRef.current;
+  const getEditorSelection = useCallback(
+    () => editorAdapterRef.current?.getSelectedText() ?? "",
+    [],
+  );
+  const deleteEditorSelection = useCallback(() => {
+    editorAdapterRef.current?.deleteSelection();
+  }, []);
+  const copyEditorSelection = useCallback(
+    () => editorAdapterRef.current?.copySelection() ?? Promise.resolve(false),
+    [],
+  );
+  const cutEditorSelection = useCallback(
+    () => editorAdapterRef.current?.cutSelection() ?? Promise.resolve(false),
+    [],
+  );
+  const getSourceSelection = useCallback(
+    () => sourceEditorRef.current?.getSelectedText() ?? "",
+    [],
+  );
+  const deleteSourceSelection = useCallback(() => {
+    sourceEditorRef.current?.deleteSelection();
+  }, []);
+  const tocItems = useMemo(
+    () => extractToc(documentMarkdown),
+    [documentMarkdown],
+  );
 
   async function guardUnsaved(): Promise<boolean> {
     if (!fileState.isDirty) return true;
@@ -316,6 +356,14 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_PATH", path });
   }
 
+  const navigateToHeading = useCallback(
+    (headingId: string) => {
+      if (sourceMode) return false;
+      return editorAdapterRef.current?.scrollToHeading?.(headingId) ?? false;
+    },
+    [sourceMode],
+  );
+
   return (
     <FileContext.Provider
       value={{
@@ -330,6 +378,14 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         sourceEditorState,
         sourceMode,
         sourceText,
+        documentMarkdown,
+        tocItems,
+        getEditorSelection,
+        deleteEditorSelection,
+        copyEditorSelection,
+        cutEditorSelection,
+        getSourceSelection,
+        deleteSourceSelection,
         updateSourceText,
         handleEditorChange,
         handleEditorAction,
@@ -338,6 +394,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         setThemeMode,
         sidebarOpen,
         toggleSidebar,
+        navigateToHeading,
         handleNew,
         handleOpen,
         handleSave,

@@ -15,9 +15,9 @@ const TITLE_BADGE_CLASS =
 const ISLAND_CLASS =
   "card card-frosted pointer-events-auto overflow-visible px-1.5 py-1";
 const BASE_BTN =
-  "btn btn-ghost btn-xs btn-square btn-frosted btn-recessed h-[22px] min-h-[22px] w-7";
+  "btn btn-ghost btn-xs btn-square btn-frosted btn-recessed btn-recessed-interactive h-[22px] min-h-[22px] w-7";
 const IDLE_BTN = `${BASE_BTN} opacity-70`;
-const ACTIVE_BTN = `${BASE_BTN} btn-active btn-recessed-open`;
+const ACTIVE_BTN = `${BASE_BTN} btn-active`;
 const WINDOW_BTN = `${BASE_BTN} opacity-80`;
 const MENU_LAYER_CLASS = "floating-bar-menu-layer overflow-visible";
 const MENU_LAYER_BASE_Z_INDEX = 1045;
@@ -450,6 +450,13 @@ export function FloatingBar() {
       closeSubmenuTimer.current = null;
     }
   }
+
+  useEffect(() => {
+    return () => {
+      cancelClose();
+      cancelCloseSubmenu();
+    };
+  }, []);
 
   async function handleMinimize() {
     await getCurrentWindow().minimize();

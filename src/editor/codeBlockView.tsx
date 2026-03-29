@@ -32,6 +32,7 @@ import {
   getCodeBlockLanguageSearchText,
   resolveCodeBlockLanguageValue,
 } from "./codeBlockLanguages";
+import { runCodeBlockCopy } from "./clipboardBridge";
 
 type PreviewValue = null | string | HTMLElement;
 
@@ -90,6 +91,8 @@ class AppCodeMirrorBlock implements NodeView {
   private previewOnlyMode: boolean;
   private updating = false;
   private previewVersion = 0;
+  private destroyed = false;
+  private languageRequestVersion = 0;
 
   private readonly languageConf: Compartment;
   private readonly readOnlyConf: Compartment;
@@ -190,15 +193,28 @@ class AppCodeMirrorBlock implements NodeView {
 
     this.rawLanguage = nextRawLanguage;
     this.language = nextLanguage;
+    const requestVersion = ++this.languageRequestVersion;
 
     void this.loader
       .load(nextRawLanguage || nextLanguage)
       .then((language) => {
+        if (
+          this.destroyed ||
+          requestVersion !== this.languageRequestVersion ||
+          !this.cm.dom.isConnected
+        ) {
+          return;
+        }
         this.cm.dispatch({
           effects: this.languageConf.reconfigure(language ? [language] : []),
         });
       })
-      .catch(console.error);
+      .catch((error) => {
+        if (this.destroyed || requestVersion !== this.languageRequestVersion) {
+          return;
+        }
+        console.error(error);
+      });
   }
 
   private updatePreview() {
@@ -226,9 +242,7 @@ class AppCodeMirrorBlock implements NodeView {
   }
 
   private handleCopy = () => {
-    copyToClipboard(this.text)
-      .then(() => this.config.onCopy?.(this.text))
-      .catch(console.error);
+    void runCodeBlockCopy(this.text);
   };
 
   private codeMirrorKeymap(): KeyBinding[] {
@@ -360,6 +374,8 @@ class AppCodeMirrorBlock implements NodeView {
   }
 
   destroy() {
+    this.destroyed = true;
+    this.languageRequestVersion += 1;
     this.root.unmount();
     this.cm.destroy();
   }
@@ -573,28 +589,6 @@ function buildLanguageItems(currentLanguage: {
   ];
 }
 
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return;
-  } catch {
-    const element = document.createElement("textarea");
-    const previousFocus = document.activeElement;
-    element.value = text;
-    element.setAttribute("readonly", "");
-    element.style.position = "absolute";
-    element.style.left = "-9999px";
-    document.body.appendChild(element);
-    element.select();
-    element.selectionStart = 0;
-    element.selectionEnd = text.length;
-    document.execCommand("copy");
-    document.body.removeChild(element);
-    if (previousFocus instanceof HTMLElement) {
-      previousFocus.focus();
-    }
-  }
-}
 
 function computeChange(previous: string, next: string) {
   if (previous === next) return null;

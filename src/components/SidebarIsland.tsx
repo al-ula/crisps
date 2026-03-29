@@ -1,82 +1,81 @@
+import { useFileContext } from "../context/FileContext";
+
 interface SidebarIslandProps {
   mode: "overlay" | "docked";
+  width: number | null;
+  onResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
 }
 
-const SECTIONS = [
-  {
-    label: "Pinned",
-    items: ["Recently opened documents", "Working draft snapshot"],
-  },
-  {
-    label: "Workspace",
-    items: ["Project outline placeholder", "Shared references placeholder"],
-  },
-  {
-    label: "Notes",
-    items: ["Scratch area placeholder", "Quick actions placeholder"],
-  },
-];
+export function SidebarIsland({
+  mode,
+  width,
+  onResizeStart,
+}: SidebarIslandProps) {
+  const { tocItems, sourceMode, navigateToHeading } = useFileContext();
 
-export function SidebarIsland({ mode }: SidebarIslandProps) {
   return (
     <aside
-      className="card card-frosted pointer-events-auto mt-(--sidebar-top-offset) ml-(--sidebar-gap) text-base-content"
+      className="card card-frosted pointer-events-auto relative mt-(--sidebar-top-offset) ml-(--sidebar-gap) overflow-hidden p-0 text-base-content"
       style={{
         width:
-          mode === "overlay"
-            ? "var(--sidebar-width-overlay)"
-            : "var(--sidebar-width-docked)",
+          width == null
+            ? mode === "overlay"
+              ? "var(--sidebar-width-overlay)"
+              : "var(--sidebar-width-docked)"
+            : `${width}px`,
         height:
           "calc(100vh - var(--sidebar-top-offset) - var(--sidebar-bottom-offset))",
       }}
       aria-label="Workspace sidebar"
     >
-      <div className="card-body h-full min-h-0 gap-4 p-4 text-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="mb-1 flex-none text-[0.68rem] font-bold uppercase tracking-[0.16em] text-base-content/55">
-              Workspace
-            </p>
-            <h2 className="text-xl leading-[1.15] font-semibold">
-              Sidebar shell
-            </h2>
-          </div>
-          <span className="badge badge-soft badge-sm badge-frosted whitespace-nowrap uppercase tracking-[0.08em]">
-            {mode === "overlay" ? "Overlay" : "Docked"}
-          </span>
-        </div>
+      <div className="card-body h-full min-h-0 gap-2 p-4 text-sm">
+        <h2 className="text-xl font-semibold">Table of contents</h2>
 
-        <p className="flex-none text-[0.93rem] leading-6 text-base-content/78">
-          Placeholder structure for the upcoming workspace panel. This pass only
-          establishes the layout and responsive behavior.
-        </p>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-3 [scrollbar-gutter:stable]">
-          {SECTIONS.map((section) => (
-            <section
-              key={section.label}
-              className="card card-frosted card-sm shrink-0 bg-base-100/55"
-            >
-              <div className="card-body flex-none gap-3 p-4">
-                <p className="flex-none text-[0.74rem] font-bold uppercase tracking-[0.12em] text-base-content/60">
-                  {section.label}
-                </p>
-                <div className="flex flex-col gap-[0.55rem] text-[0.95rem] leading-[1.4]">
-                  {section.items.map((item) => (
-                    <div key={item} className="flex items-start gap-[0.55rem]">
-                      <span
-                        className="mt-[0.4rem] size-[0.45rem] shrink-0 rounded-full bg-primary shadow-[0_0_0_4px_color-mix(in_oklch,var(--color-primary)_18%,transparent)]"
-                        aria-hidden="true"
-                      />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          ))}
+        <div className="sidebar-toc-scroll min-h-0 flex-1">
+          {tocItems.length === 0 ? (
+            <div className="border-base-content/12 bg-base-100/50 text-base-content/62 flex min-h-full items-center justify-center rounded-box border border-dashed p-4 text-center">
+              No headings yet
+            </div>
+          ) : (
+            <nav aria-label="Table of contents" className="sidebar-toc-nav">
+              {tocItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`sidebar-toc-item sidebar-toc-item-frosted btn btn-ghost justify-start px-3 py-2 normal-case ${
+                    sourceMode ? "btn-disabled text-base-content/52" : ""
+                  }`}
+                  style={
+                    {
+                      "--toc-level": String(item.level),
+                    } as React.CSSProperties
+                  }
+                  onClick={() => {
+                    navigateToHeading(item.id);
+                  }}
+                  disabled={sourceMode}
+                  title={item.text}
+                >
+                  <span
+                    className="bg-primary shadow-primary/14 h-2 w-2 shrink-0 rounded-full shadow-[0_0_0_4px]"
+                    aria-hidden="true"
+                  />
+                  <span className="shrink-0 whitespace-nowrap">
+                    {item.text}
+                  </span>
+                </button>
+              ))}
+            </nav>
+          )}
         </div>
       </div>
+      <div
+        className="sidebar-resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        onPointerDown={onResizeStart}
+      />
     </aside>
   );
 }
