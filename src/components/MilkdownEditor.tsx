@@ -63,7 +63,6 @@ import { BlockEditorOverlay } from "./BlockEditorOverlay";
 import { getBlockIconForBlock } from "./BlockIcon";
 import { ImagePopup, type ImagePopupValue } from "./ImagePopup";
 import { LatexPopup, type LatexPopupValue } from "./LatexPopup";
-import { LinkPopup, type LinkPopupValue } from "./LinkPopup";
 import { SelectionToolbar } from "./SelectionToolbar";
 
 interface MilkdownEditorProps {
@@ -106,13 +105,10 @@ export function MilkdownEditor({
 }: MilkdownEditorProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const linkPopupRef = useRef<HTMLFormElement>(null);
   const latexPopupRef = useRef<HTMLFormElement>(null);
   const imagePopupRef = useRef<HTMLFormElement>(null);
   const blockMenuRef = useRef<HTMLDivElement | null>(null);
   const blockHandleRef = useRef<HTMLDivElement | null>(null);
-  const linkNameInputRef = useRef<HTMLInputElement>(null);
-  const linkHrefInputRef = useRef<HTMLInputElement>(null);
   const latexInputRef = useRef<HTMLInputElement>(null);
   const imagePathInputRef = useRef<HTMLInputElement>(null);
   const imageAltInputRef = useRef<HTMLInputElement>(null);
@@ -152,13 +148,6 @@ export function MilkdownEditor({
     editorState: EMPTY_EDITOR_STATE,
     style: {},
     visible: false,
-  });
-  const [linkPopupState, setLinkPopupState] = useState<{
-    style: CSSProperties;
-    value: LinkPopupValue | null;
-  }>({
-    style: {},
-    value: null,
   });
   const [latexPopupState, setLatexPopupState] = useState<{
     style: CSSProperties;
@@ -374,19 +363,6 @@ export function MilkdownEditor({
     if (!view) return;
     refreshToolbarState(view);
     refreshBlockControls(view);
-    setLinkPopupState((current) => {
-      if (!current.value || !viewRef.current) return current;
-      return {
-        ...current,
-        style: buildLinkPopupStyle(
-          viewRef.current,
-          current.value.from,
-          current.value.to,
-          current.value.showName,
-          linkPopupRef.current,
-        ),
-      };
-    });
     setLatexPopupState((current) => {
       if (!current.value || !viewRef.current) return current;
       return {
@@ -908,14 +884,6 @@ export function MilkdownEditor({
     );
   };
 
-  const closeLinkPopup = (focus = true) => {
-    setLinkPopupState({
-      style: {},
-      value: null,
-    });
-    if (focus) viewRef.current?.focus();
-  };
-
   const closeLatexPopup = (focus = true) => {
     setLatexPopupState({
       style: {},
@@ -952,20 +920,6 @@ export function MilkdownEditor({
     if (focus) viewRef.current?.focus();
   };
 
-  const openLinkPopup = (view: EditorView) => {
-    const value = getLinkPopupValue(view.state);
-    setLinkPopupState({
-      style: buildLinkPopupStyle(
-        view,
-        value.from,
-        value.to,
-        value.showName,
-        linkPopupRef.current,
-      ),
-      value,
-    });
-  };
-
   const openLatexPopup = (view: EditorView) => {
     toggleInlineLatex(view);
     const value = getLatexPopupValue(view.state);
@@ -989,7 +943,6 @@ export function MilkdownEditor({
       }
       imagePopupResolverRef.current = resolve;
       imagePopupFileRef.current = null;
-      closeLinkPopup(false);
       closeLatexPopup(false);
       closeBlockMenu(false);
       setImagePopupValue({
@@ -1034,22 +987,6 @@ export function MilkdownEditor({
           }
         : current,
     );
-  };
-
-  const submitLinkPopup = () => {
-    const view = viewRef.current;
-    const value = linkPopupState.value;
-    if (!view || !value) return;
-
-    const href = value.href.trim();
-    if (!href) return;
-
-    applyLink(view, {
-      ...value,
-      href,
-      name: value.name.trim(),
-    });
-    closeLinkPopup();
   };
 
   const submitLatexPopup = () => {
@@ -1102,7 +1039,6 @@ export function MilkdownEditor({
       action,
       frontmatterRef,
       onChange: onChangeRef.current,
-      openLinkPopup,
       openLatexPopup,
       promptForImage: requestImage,
     });
@@ -1124,7 +1060,6 @@ export function MilkdownEditor({
     const view = viewRef.current;
     if (!activeBlock || !view) return;
 
-    closeLinkPopup(false);
     closeLatexPopup(false);
     setMenuBlock(activeBlock);
     setBlockMenuState({
@@ -1154,7 +1089,6 @@ export function MilkdownEditor({
         activeBlock,
         frontmatterRef,
         onChange: onChangeRef.current,
-        openLinkPopup,
         openLatexPopup,
         promptForImage: requestImage,
       });
@@ -1165,7 +1099,6 @@ export function MilkdownEditor({
         activeBlock,
         frontmatterRef,
         onChange: onChangeRef.current,
-        openLinkPopup,
         openLatexPopup,
       });
     } else {
@@ -1208,20 +1141,6 @@ export function MilkdownEditor({
   }, []);
 
   useEffect(() => {
-    if (!linkPopupState.value) return;
-
-    const target = linkPopupState.value.showName
-      ? linkNameInputRef.current
-      : linkHrefInputRef.current;
-    target?.focus();
-    target?.select();
-  }, [
-    linkPopupState.value?.from,
-    linkPopupState.value?.to,
-    linkPopupState.value?.showName,
-  ]);
-
-  useEffect(() => {
     if (!latexPopupState.value) return;
 
     latexInputRef.current?.focus();
@@ -1234,29 +1153,6 @@ export function MilkdownEditor({
     imagePathInputRef.current?.focus();
     imagePathInputRef.current?.select();
   }, [Boolean(imagePopupValue)]);
-
-  useEffect(() => {
-    if (!linkPopupState.value) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (linkPopupRef.current?.contains(target)) return;
-      closeLinkPopup();
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      closeLinkPopup();
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [linkPopupState.value]);
 
   useEffect(() => {
     if (!latexPopupState.value) return;
@@ -1428,7 +1324,6 @@ export function MilkdownEditor({
         toolbarRef={toolbarRef}
         visible={
           toolbarState.visible &&
-          !linkPopupState.value &&
           !latexPopupState.value &&
           !imagePopupValue &&
           !blockMenuState.visible
@@ -1508,27 +1403,6 @@ export function MilkdownEditor({
           );
         }}
         onSubmit={submitLatexPopup}
-      />
-      <LinkPopup
-        popupRef={linkPopupRef}
-        hrefInputRef={linkHrefInputRef}
-        nameInputRef={linkNameInputRef}
-        style={linkPopupState.style}
-        value={linkPopupState.value}
-        onChange={(patch) => {
-          setLinkPopupState((current) =>
-            current.value
-              ? {
-                  ...current,
-                  value: {
-                    ...current.value,
-                    ...patch,
-                  },
-                }
-              : current,
-          );
-        }}
-        onSubmit={submitLinkPopup}
       />
     </>
   );
@@ -1709,63 +1583,6 @@ function isMarkActive(state: EditorState, markName: string): boolean {
   return state.doc.rangeHasMark(from, to, mark);
 }
 
-function getLinkPopupValue(state: EditorState): LinkPopupValue {
-  const link = findLinkRange(state);
-  if (link) {
-    return {
-      from: link.from,
-      to: link.to,
-      href: link.href,
-      name: "",
-      showName: false,
-    };
-  }
-
-  const { selection, doc } = state;
-  const hasSelectedText =
-    selection instanceof TextSelection &&
-    !selection.empty &&
-    doc.textBetween(selection.from, selection.to).length > 0;
-
-  return {
-    from: selection.from,
-    to: selection.to,
-    href: "",
-    name: "",
-    showName: !hasSelectedText,
-  };
-}
-
-function buildLinkPopupStyle(
-  view: EditorView,
-  from: number,
-  to: number,
-  showName: boolean,
-  popupElement: HTMLFormElement | null,
-): CSSProperties {
-  const start = view.coordsAtPos(from);
-  const end = view.coordsAtPos(to);
-  const center = (start.left + end.right) / 2;
-  const popupWidth = popupElement?.offsetWidth ?? 360;
-  const maxLeft = Math.max(8, window.innerWidth - popupWidth - 8);
-  const left = Math.min(Math.max(center - popupWidth / 2, 8), maxLeft);
-  const popupHeight = showName ? 132 : 84;
-  const preferredTop = Math.min(start.top, end.top) - popupHeight;
-  const fallbackTop = Math.max(start.bottom, end.bottom) + 12;
-  const top =
-    preferredTop >= 8
-      ? preferredTop
-      : Math.min(
-          fallbackTop,
-          Math.max(8, window.innerHeight - popupHeight - 8),
-        );
-
-  return {
-    left,
-    top,
-  };
-}
-
 function getLatexPopupValue(state: EditorState): LatexPopupValue | null {
   const { selection } = state;
   if (!(selection instanceof NodeSelection)) return null;
@@ -1806,76 +1623,6 @@ function buildLatexPopupStyle(
     left,
     top,
   };
-}
-
-function findLinkRange(state: EditorState): {
-  from: number;
-  to: number;
-  href: string;
-} | null {
-  const markType = state.schema.marks.link;
-  if (!markType) return null;
-
-  const { selection, doc } = state;
-  const scanFrom = Math.max(0, selection.from - (selection.empty ? 1 : 0));
-  const scanTo = Math.min(doc.content.size, selection.to + 1);
-  let start = -1;
-  let end = -1;
-  let href = "";
-
-  doc.nodesBetween(scanFrom, scanTo, (node, pos) => {
-    if (!node.isText) return;
-
-    const mark = markType.isInSet(node.marks);
-    if (!mark) return;
-
-    const nodeEnd = pos + node.nodeSize;
-    const intersects = selection.empty
-      ? selection.from >= pos && selection.from <= nodeEnd
-      : selection.to > pos && selection.from < nodeEnd;
-
-    if (!intersects) return;
-
-    if (start === -1 || pos < start) start = pos;
-    if (nodeEnd > end) end = nodeEnd;
-    href = String(mark.attrs.href ?? "");
-  });
-
-  if (start === -1 || end === -1) return null;
-
-  return { from: start, to: end, href };
-}
-
-function applyLink(view: EditorView, value: LinkPopupValue): boolean {
-  const { state } = view;
-  const type = state.schema.marks.link;
-  if (!type) return false;
-
-  const tr = state.tr;
-
-  if (value.showName) {
-    const label = value.name || value.href;
-    const textNode = state.schema.text(label, [
-      type.create({ href: value.href }),
-    ]);
-    const next = tr.replaceRangeWith(value.from, value.to, textNode);
-    view.dispatch(
-      next
-        .setSelection(TextSelection.create(next.doc, value.from + label.length))
-        .scrollIntoView(),
-    );
-    return true;
-  }
-
-  const next = tr
-    .removeMark(value.from, value.to, type)
-    .addMark(value.from, value.to, type.create({ href: value.href }));
-  view.dispatch(
-    next
-      .setSelection(TextSelection.create(next.doc, value.from, value.to))
-      .scrollIntoView(),
-  );
-  return true;
 }
 
 function isInlineLatexActive(state: EditorState): boolean {

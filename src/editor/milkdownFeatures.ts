@@ -34,6 +34,7 @@ import type { Editor } from "@milkdown/kit/core";
 import { codeBlockView } from "./codeBlockView";
 import { resolveImageSrcForDom } from "./imageSrc";
 import { useLatexFeature as useAppLatexFeature } from "./latexFeature";
+import { appLinkTooltipPlugin, appLinkTooltipConfig, configureAppLinkTooltip } from "./linkTooltip";
 
 const appRuntimeCtx = $ctx(
   {
@@ -185,6 +186,18 @@ export function usePlaceholderFeature(editor: Editor) {
 
 export function useLatexFeature(editor: Editor) {
   useAppLatexFeature(editor);
+}
+
+export function useLinkTooltipFeature(editor: Editor) {
+  editor
+    .config((ctx) => {
+      configureAppLinkTooltip(ctx);
+      ctx.update(appLinkTooltipConfig.key, (value) => ({
+        ...value,
+        inputPlaceholder: "https://example.com",
+      }));
+    })
+    .use(appLinkTooltipPlugin);
 }
 
 function isDocEmpty(doc: Node) {

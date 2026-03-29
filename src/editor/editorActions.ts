@@ -36,6 +36,7 @@ import type { ActiveBlock } from "./blockEdit";
 import type { BlockMenuItemKey } from "./blockMenuConfig";
 import { DEFAULT_CODE_BLOCK_LANGUAGE } from "./codeBlockLanguages";
 import { joinFrontmatter } from "./frontmatter";
+import { appLinkTooltipAPI } from "./linkTooltip";
 import type { MilkdownRuntime } from "./milkdownRuntime";
 import type { EditorAction } from "./types";
 
@@ -50,7 +51,6 @@ interface RunEditorActionOptions {
   action: EditorAction;
   frontmatterRef: MutableRefObject<string>;
   onChange: (markdown: string) => void;
-  openLinkPopup: (view: EditorView) => void;
   openLatexPopup: (view: EditorView) => void;
   promptForImage: () => Promise<EditorImageValue | undefined>;
   image?: EditorImageValue;
@@ -61,7 +61,6 @@ export async function runEditorAction({
   action,
   frontmatterRef,
   onChange,
-  openLinkPopup,
   openLatexPopup,
   promptForImage,
   image,
@@ -175,7 +174,7 @@ export async function runEditorAction({
       return;
     case "createLink":
       runtime.action((ctx) => {
-        openLinkPopup(ctx.get(editorViewCtx));
+        ctx.get(appLinkTooltipAPI.key).createLink();
       });
       return;
     case "insertImage": {
@@ -223,7 +222,6 @@ interface BaseBlockMenuActionOptions {
   activeBlock: ActiveBlock;
   frontmatterRef: MutableRefObject<string>;
   onChange: (markdown: string) => void;
-  openLinkPopup: (view: EditorView) => void;
   openLatexPopup: (view: EditorView) => void;
 }
 
@@ -237,7 +235,6 @@ export async function runAddBlockAction({
   activeBlock,
   frontmatterRef,
   onChange,
-  openLinkPopup,
   openLatexPopup,
   promptForImage,
 }: AddBlockMenuActionOptions) {
@@ -250,7 +247,6 @@ export async function runAddBlockAction({
       action: { action: "insertImage" },
       frontmatterRef,
       onChange,
-      openLinkPopup,
       openLatexPopup,
       promptForImage,
       image,
@@ -264,7 +260,6 @@ export async function runAddBlockAction({
     action: mapAddAction(key),
     frontmatterRef,
     onChange,
-    openLinkPopup,
     openLatexPopup,
     promptForImage,
   });

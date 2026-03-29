@@ -49,6 +49,7 @@ import {
   useCodeMirrorFeature,
   useImageFeature,
   useLatexFeature,
+  useLinkTooltipFeature,
   useListItemFeature,
   usePlaceholderFeature,
   useTableFeature,
@@ -143,6 +144,7 @@ export function createMilkdownRuntime(
   });
   useImageFeature(editor, options.onUpload);
   useLatexFeature(editor);
+  useLinkTooltipFeature(editor);
   useListItemFeature(editor);
   usePlaceholderFeature(editor);
   useTableFeature(editor);
