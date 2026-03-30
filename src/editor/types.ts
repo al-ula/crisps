@@ -1,3 +1,5 @@
+export type EditorId = "milkdown" | "source";
+
 export type EditorBlockType =
   | "paragraph"
   | "quote"
@@ -36,6 +38,7 @@ export interface EditorAction {
 }
 
 export interface EditorStateSnapshot {
+  editor: EditorId;
   canUndo: boolean;
   canRedo: boolean;
   bold: boolean;
@@ -46,21 +49,6 @@ export interface EditorStateSnapshot {
   blockType: string;
   listType: string;
   focused: boolean;
-}
-
-export type SourceEditorAction = "undo" | "redo";
-
-export interface SourceEditorStateSnapshot {
-  canUndo: boolean;
-  canRedo: boolean;
-  focused: boolean;
-}
-
-export interface SourceEditorController {
-  focus: () => void;
-  getSelectedText: () => string;
-  deleteSelection: () => void;
-  runAction: (action: SourceEditorAction) => void;
 }
 
 export interface EditorAdapter {
@@ -79,6 +67,7 @@ export interface EditorAdapter {
 }
 
 export const EMPTY_EDITOR_STATE: EditorStateSnapshot = {
+  editor: "milkdown",
   canUndo: false,
   canRedo: false,
   bold: false,
@@ -88,11 +77,5 @@ export const EMPTY_EDITOR_STATE: EditorStateSnapshot = {
   code: false,
   blockType: "paragraph",
   listType: "",
-  focused: false,
-};
-
-export const EMPTY_SOURCE_EDITOR_STATE: SourceEditorStateSnapshot = {
-  canUndo: false,
-  canRedo: false,
   focused: false,
 };

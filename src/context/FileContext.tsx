@@ -10,13 +10,10 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import {
-  EMPTY_SOURCE_EDITOR_STATE,
   EMPTY_EDITOR_STATE,
   type EditorAction,
   type EditorAdapter,
   type EditorStateSnapshot,
-  type SourceEditorController,
-  type SourceEditorStateSnapshot,
 } from "../editor/types";
 import { extractToc, type TocItem } from "../editor/toc";
 
@@ -51,19 +48,15 @@ interface FileContextValue {
   themeMode: "auto" | "light" | "dark";
   isDarkTheme: boolean;
   setEditorAdapter: (adapter: EditorAdapter | null) => void;
-  registerSourceEditor: (controller: SourceEditorController | null) => void;
-  updateSourceEditorState: (state: SourceEditorStateSnapshot) => void;
-  sourceEditorState: SourceEditorStateSnapshot;
+  setSourceAdapter: (adapter: EditorAdapter | null) => void;
   sourceMode: boolean;
   sourceText: string;
   documentMarkdown: string;
   tocItems: TocItem[];
-  getEditorSelection: () => string;
-  deleteEditorSelection: () => void;
-  copyEditorSelection: () => Promise<boolean>;
-  cutEditorSelection: () => Promise<boolean>;
-  getSourceSelection: () => string;
-  deleteSourceSelection: () => void;
+  getSelection: () => string;
+  deleteSelection: () => void;
+  copySelection: () => Promise<boolean>;
+  cutSelection: () => Promise<boolean>;
   updateSourceText: (text: string) => void;
   handleEditorChange: (markdown: string) => void;
   handleEditorAction: (action: EditorAction) => Promise<void>;
@@ -93,9 +86,11 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     isDirty: false,
   });
   const editorAdapterRef = useRef<EditorAdapter | null>(null);
-  const sourceEditorRef = useRef<SourceEditorController | null>(null);
+  const sourceAdapterRef = useRef<EditorAdapter | null>(null);
   const editorSubscriptionRef = useRef<(() => void) | null>(null);
+  const sourceSubscriptionRef = useRef<(() => void) | null>(null);
   const adapterVersionRef = useRef(0);
+  const sourceAdapterVersionRef = useRef(0);
   const systemThemeMediaRef = useRef<MediaQueryList | null>(null);
   if (!systemThemeMediaRef.current) {
     systemThemeMediaRef.current = window.matchMedia(
@@ -103,9 +98,8 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     );
   }
   const [editorState, setEditorState] = useState(EMPTY_EDITOR_STATE);
-  const [sourceEditorState, setSourceEditorState] = useState(
-    EMPTY_SOURCE_EDITOR_STATE,
-  );
+  const [sourceEditorState, setSourceEditorState] =
+    useState<EditorStateSnapshot>({ ...EMPTY_EDITOR_STATE, editor: "source" });
   const [themeMode, setThemeMode] = useState<"auto" | "light" | "dark">(
     "light",
   );
@@ -118,6 +112,8 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const currentContentRef = useRef("");
   const savedContentRef = useRef("");
+  const sourceModeRef = useRef(false);
+  sourceModeRef.current = sourceMode;
 
   const setDirtyState = useCallback((content: string) => {
     dispatch({
@@ -131,23 +127,6 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       setDirtyState(markdown);
     },
     [setDirtyState],
-  );
-
-  const registerSourceEditor = useCallback(
-    (controller: SourceEditorController | null) => {
-      sourceEditorRef.current = controller;
-      if (!controller) {
-        setSourceEditorState(EMPTY_SOURCE_EDITOR_STATE);
-      }
-    },
-    [],
-  );
-
-  const updateSourceEditorState = useCallback(
-    (state: SourceEditorStateSnapshot) => {
-      setSourceEditorState(state);
-    },
-    [],
   );
 
   const setEditorAdapter = useCallback((adapter: EditorAdapter | null) => {
@@ -171,6 +150,32 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       .then((unsubscribe) => {
         if (adapterVersionRef.current === version) {
           editorSubscriptionRef.current = unsubscribe;
+        } else {
+          unsubscribe();
+        }
+      });
+  }, []);
+
+  const setSourceAdapter = useCallback((adapter: EditorAdapter | null) => {
+    sourceAdapterVersionRef.current += 1;
+    const version = sourceAdapterVersionRef.current;
+
+    sourceSubscriptionRef.current?.();
+    sourceSubscriptionRef.current = null;
+    sourceAdapterRef.current = adapter;
+    setSourceEditorState({ ...EMPTY_EDITOR_STATE, editor: "source" });
+
+    if (!adapter) return;
+
+    void adapter
+      .subscribeState((state) => {
+        if (sourceAdapterVersionRef.current === version) {
+          setSourceEditorState(state);
+        }
+      })
+      .then((unsubscribe) => {
+        if (sourceAdapterVersionRef.current === version) {
+          sourceSubscriptionRef.current = unsubscribe;
         } else {
           unsubscribe();
         }
@@ -202,6 +207,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     return () => {
       editorSubscriptionRef.current?.();
+      sourceSubscriptionRef.current?.();
     };
   }, []);
 
@@ -226,8 +232,8 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       savedContentRef.current = content;
       editorAdapterRef.current?.setMarkdown(content);
       setSourceText(content);
-      if (sourceMode) {
-        sourceEditorRef.current?.focus();
+      if (sourceModeRef.current) {
+        sourceAdapterRef.current?.focus();
       } else {
         editorAdapterRef.current?.focus();
       }
@@ -238,7 +244,7 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
       }
       handleEditorChange(content);
     },
-    [handleEditorChange, sourceMode],
+    [handleEditorChange],
   );
 
   function updateSourceText(text: string) {
@@ -261,62 +267,65 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
     if (!sourceMode) {
       setSourceText(getCurrentContent());
       setSourceMode(true);
+      void invoke("set_active_editor", { editor: "source" });
     } else {
       currentContentRef.current = sourceText;
       editorAdapterRef.current?.setMarkdown(sourceText);
       setDirtyState(sourceText);
       setSourceMode(false);
       editorAdapterRef.current?.focus();
+      void invoke("set_active_editor", { editor: "milkdown" });
     }
   }
 
   const handleEditorAction = useCallback(
     async (action: EditorAction) => {
-      if (sourceMode) {
-        if (action.action === "undo" || action.action === "redo") {
-          sourceEditorRef.current?.runAction(action.action);
-        }
-        return;
-      }
-
-      await editorAdapterRef.current?.runAction(action);
+      const adapter = sourceMode
+        ? sourceAdapterRef.current
+        : editorAdapterRef.current;
+      await adapter?.runAction(action);
     },
     [sourceMode],
   );
 
-  const activeEditorState = sourceMode
-    ? {
-        ...EMPTY_EDITOR_STATE,
-        canUndo: sourceEditorState.canUndo,
-        canRedo: sourceEditorState.canRedo,
-        focused: sourceEditorState.focused,
-      }
-    : editorState;
+  const activeEditorState = sourceMode ? sourceEditorState : editorState;
   const documentMarkdown = sourceMode
     ? sourceText
     : currentContentRef.current;
-  const getEditorSelection = useCallback(
-    () => editorAdapterRef.current?.getSelectedText() ?? "",
+
+  const getSelection = useCallback(
+    () => {
+      const adapter = sourceModeRef.current
+        ? sourceAdapterRef.current
+        : editorAdapterRef.current;
+      return adapter?.getSelectedText() ?? "";
+    },
     [],
   );
-  const deleteEditorSelection = useCallback(() => {
-    editorAdapterRef.current?.deleteSelection();
+  const deleteSelection = useCallback(() => {
+    const adapter = sourceModeRef.current
+      ? sourceAdapterRef.current
+      : editorAdapterRef.current;
+    adapter?.deleteSelection();
   }, []);
-  const copyEditorSelection = useCallback(
-    () => editorAdapterRef.current?.copySelection() ?? Promise.resolve(false),
+  const copySelection = useCallback(
+    () => {
+      const adapter = sourceModeRef.current
+        ? sourceAdapterRef.current
+        : editorAdapterRef.current;
+      return adapter?.copySelection() ?? Promise.resolve(false);
+    },
     [],
   );
-  const cutEditorSelection = useCallback(
-    () => editorAdapterRef.current?.cutSelection() ?? Promise.resolve(false),
+  const cutSelection = useCallback(
+    () => {
+      const adapter = sourceModeRef.current
+        ? sourceAdapterRef.current
+        : editorAdapterRef.current;
+      return adapter?.cutSelection() ?? Promise.resolve(false);
+    },
     [],
   );
-  const getSourceSelection = useCallback(
-    () => sourceEditorRef.current?.getSelectedText() ?? "",
-    [],
-  );
-  const deleteSourceSelection = useCallback(() => {
-    sourceEditorRef.current?.deleteSelection();
-  }, []);
 
   async function guardUnsaved(): Promise<boolean> {
     if (!fileState.isDirty) return true;
@@ -375,19 +384,15 @@ export function FileProvider({ children }: { children: React.ReactNode }) {
         themeMode,
         isDarkTheme,
         setEditorAdapter,
-        registerSourceEditor,
-        updateSourceEditorState,
-        sourceEditorState,
+        setSourceAdapter,
         sourceMode,
         sourceText,
         documentMarkdown,
         tocItems,
-        getEditorSelection,
-        deleteEditorSelection,
-        copyEditorSelection,
-        cutEditorSelection,
-        getSourceSelection,
-        deleteSourceSelection,
+        getSelection,
+        deleteSelection,
+        copySelection,
+        cutSelection,
         updateSourceText,
         handleEditorChange,
         handleEditorAction,

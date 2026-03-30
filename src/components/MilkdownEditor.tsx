@@ -486,7 +486,7 @@ export function MilkdownEditor({
 
     const emitSnapshot = (view: EditorView) => {
       const nextEditorState = buildEditorState(view);
-      void emitEditorState(nextEditorState);
+      void emitEditorState("milkdown", nextEditorState);
       scheduleEditorChromeRefresh(view);
     };
 
@@ -824,7 +824,7 @@ export function MilkdownEditor({
       };
 
       onReady(
-        createTauriEditorAdapter({
+        createTauriEditorAdapter("milkdown", {
           setMarkdown,
           getMarkdown,
           getSelectedText,
@@ -839,7 +839,7 @@ export function MilkdownEditor({
         }),
       );
 
-      unlisten = await listenForEditorActions(async (action) => {
+      unlisten = await listenForEditorActions("milkdown", async (action) => {
         await performEditorAction(runtime, action);
       });
 
@@ -1047,7 +1047,7 @@ export function MilkdownEditor({
       }
       scheduleEditorChromeRefresh(view);
       if (action.action === "insertFrontmatter") {
-        void emitEditorState(buildEditorState(view));
+        void emitEditorState("milkdown", buildEditorState(view));
       }
     });
   };
@@ -1413,6 +1413,7 @@ function buildEditorState(view: EditorView): EditorStateSnapshot {
   const { blockType, listType } = getBlockState(state);
 
   return {
+    editor: "milkdown",
     canUndo: undoDepth(state) > 0,
     canRedo: redoDepth(state) > 0,
     bold: isMarkActive(state, "strong"),

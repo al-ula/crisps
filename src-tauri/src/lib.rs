@@ -11,9 +11,14 @@ struct EditorActionPayload {
     rows: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     columns: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target: Option<String>,
 }
 
 pub struct CliFile(pub Mutex<Option<String>>);
+
+/// Tracks which editor is currently active ("milkdown" or "source").
+pub struct ActiveEditor(pub Mutex<String>);
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -21,6 +26,23 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+/// Set the active editor. Called by the frontend when toggling between modes.
+#[tauri::command]
+fn set_active_editor(
+    editor: String,
+    state: tauri::State<ActiveEditor>,
+) {
+    *state.0.lock().unwrap() = editor;
+}
+
+/// Get the currently active editor id.
+#[tauri::command]
+fn get_active_editor(state: tauri::State<ActiveEditor>) -> String {
+    state.0.lock().unwrap().clone()
+}
+
+/// Dispatch an editor action. When no explicit target is given, the action is
+/// automatically routed to whichever editor is currently active.
 #[tauri::command]
 fn editor_action(
     window: tauri::Window,
@@ -28,7 +50,13 @@ fn editor_action(
     block_type: Option<String>,
     rows: Option<u32>,
     columns: Option<u32>,
+    target: Option<String>,
+    state: tauri::State<ActiveEditor>,
 ) -> Result<(), String> {
+    let resolved_target = target.or_else(|| {
+        Some(state.0.lock().unwrap().clone())
+    });
+
     window
         .emit(
             "editor-action",
@@ -37,6 +65,49 @@ fn editor_action(
                 block_type,
                 rows,
                 columns,
+                target: resolved_target,
+            },
+        )
+        .map_err(|e| e.to_string())
+}
+
+/// Convenience command: undo in the active editor.
+#[tauri::command]
+fn undo(
+    window: tauri::Window,
+    state: tauri::State<ActiveEditor>,
+) -> Result<(), String> {
+    let target = state.0.lock().unwrap().clone();
+    window
+        .emit(
+            "editor-action",
+            EditorActionPayload {
+                action: "undo".to_string(),
+                block_type: None,
+                rows: None,
+                columns: None,
+                target: Some(target),
+            },
+        )
+        .map_err(|e| e.to_string())
+}
+
+/// Convenience command: redo in the active editor.
+#[tauri::command]
+fn redo(
+    window: tauri::Window,
+    state: tauri::State<ActiveEditor>,
+) -> Result<(), String> {
+    let target = state.0.lock().unwrap().clone();
+    window
+        .emit(
+            "editor-action",
+            EditorActionPayload {
+                action: "redo".to_string(),
+                block_type: None,
+                rows: None,
+                columns: None,
+                target: Some(target),
             },
         )
         .map_err(|e| e.to_string())
@@ -106,6 +177,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(CliFile(Mutex::new(cli_file)))
+        .manage(ActiveEditor(Mutex::new("milkdown".to_string())))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
@@ -117,6 +189,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             editor_action,
+            set_active_editor,
+            get_active_editor,
+            undo,
+            redo,
             read_file,
             write_file,
             open_file_dialog,

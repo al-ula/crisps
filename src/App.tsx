@@ -44,6 +44,7 @@ function AppInner() {
     editorState,
     fileState,
     setEditorAdapter,
+    setSourceAdapter,
     handleNew,
     handleOpen,
     handleSave,
@@ -51,15 +52,10 @@ function AppInner() {
     handleEditorChange,
     loadDocument,
     sourceMode,
-    sourceEditorState,
-    copyEditorSelection,
-    cutEditorSelection,
     sourceText,
-    getSourceSelection,
-    deleteSourceSelection,
+    copySelection,
+    cutSelection,
     updateSourceText,
-    registerSourceEditor,
-    updateSourceEditorState,
     sidebarOpen,
     isDarkTheme,
   } = useFileContext();
@@ -212,52 +208,27 @@ function AppInner() {
           handleNew();
           break;
         case "c":
-          if (sourceMode) {
-            if (!sourceEditorState.focused) break;
-            const selectedText = getSourceSelection();
-            if (!selectedText) break;
-            e.preventDefault();
-            void copyText(selectedText, "Copied from source mode");
-            break;
-          }
           if (!editorState.focused) break;
           e.preventDefault();
-          void copyEditorSelection().catch(() => {});
+          void copySelection().catch(() => {});
           break;
         case "x":
-          if (sourceMode) {
-            if (!sourceEditorState.focused) break;
-            const selectedText = getSourceSelection();
-            if (!selectedText) break;
-            e.preventDefault();
-            void copyText(selectedText, "Cut from source mode")
-              .then(() => {
-                deleteSourceSelection();
-              })
-              .catch(() => {});
-            break;
-          }
           if (!editorState.focused) break;
           e.preventDefault();
-          void cutEditorSelection().catch(() => {});
+          void cutSelection().catch(() => {});
           break;
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    copyText,
-    copyEditorSelection,
-    cutEditorSelection,
+    copySelection,
+    cutSelection,
     handleNew,
     handleOpen,
     handleSave,
     handleSaveAs,
     editorState.focused,
-    getSourceSelection,
-    deleteSourceSelection,
-    sourceEditorState.focused,
-    sourceMode,
   ]);
 
   useEffect(() => {
@@ -366,8 +337,14 @@ function AppInner() {
                   <SourceEditor
                     value={sourceText}
                     onChange={updateSourceText}
-                    onReady={registerSourceEditor}
-                    onStateChange={updateSourceEditorState}
+                    onReady={setSourceAdapter}
+                    onWriteClipboard={async (text) => {
+                      await writeClipboard({
+                        text,
+                        operation: "copy",
+                        source: "selection",
+                      });
+                    }}
                     isDarkTheme={isDarkTheme}
                     autoFocus
                   />

@@ -1,5 +1,10 @@
 import { emit, listen } from "@tauri-apps/api/event";
-import type { EditorAction, EditorAdapter, EditorStateSnapshot } from "./types";
+import type {
+  EditorAction,
+  EditorAdapter,
+  EditorId,
+  EditorStateSnapshot,
+} from "./types";
 
 type TauriEditorActionPayload = {
   action: string;
@@ -7,19 +12,23 @@ type TauriEditorActionPayload = {
   blockType?: string;
   rows?: number;
   columns?: number;
+  target?: string;
 };
 
-export function createTauriEditorAdapter(options: {
-  setMarkdown: (markdown: string) => void;
-  getMarkdown: () => string;
-  getSelectedText: () => string;
-  deleteSelection: () => void;
-  copySelection: () => Promise<boolean>;
-  cutSelection: () => Promise<boolean>;
-  focus: () => void;
-  scrollToHeading?: (headingId: string) => boolean;
-  runAction: (action: EditorAction) => Promise<void>;
-}): EditorAdapter {
+export function createTauriEditorAdapter(
+  editorId: EditorId,
+  options: {
+    setMarkdown: (markdown: string) => void;
+    getMarkdown: () => string;
+    getSelectedText: () => string;
+    deleteSelection: () => void;
+    copySelection: () => Promise<boolean>;
+    cutSelection: () => Promise<boolean>;
+    focus: () => void;
+    scrollToHeading?: (headingId: string) => boolean;
+    runAction: (action: EditorAction) => Promise<void>;
+  },
+): EditorAdapter {
   return {
     setMarkdown: options.setMarkdown,
     getMarkdown: options.getMarkdown,
@@ -34,22 +43,28 @@ export function createTauriEditorAdapter(options: {
     },
     async subscribeState(listener) {
       return listen<EditorStateSnapshot>("editor-state", (event) => {
-        listener(event.payload);
+        if (event.payload.editor === editorId) {
+          listener(event.payload);
+        }
       });
     },
   };
 }
 
 export async function emitEditorState(
+  editorId: EditorId,
   state: EditorStateSnapshot,
 ): Promise<void> {
-  await emit("editor-state", state);
+  await emit("editor-state", { ...state, editor: editorId });
 }
 
 export async function listenForEditorActions(
+  editorId: EditorId,
   handler: (action: EditorAction) => void | Promise<void>,
 ): Promise<() => void> {
   return listen<TauriEditorActionPayload>("editor-action", async (event) => {
+    const target = event.payload.target;
+    if (target && target !== editorId) return;
     await handler({
       action: event.payload.action as EditorAction["action"],
       blockType: (event.payload.blockType ??

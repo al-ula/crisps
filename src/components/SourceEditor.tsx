@@ -5,10 +5,6 @@ import {
   history,
   historyKeymap,
   indentWithTab,
-  redo,
-  redoDepth,
-  undo,
-  undoDepth,
 } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { bracketMatching, indentOnInput } from "@codemirror/language";
@@ -22,17 +18,18 @@ import {
   keymap,
   lineNumbers,
 } from "@codemirror/view";
-import type {
-  SourceEditorAction,
-  SourceEditorController,
-  SourceEditorStateSnapshot,
-} from "../editor/types";
+import type { EditorAdapter, EditorStateSnapshot } from "../editor/types";
+import {
+  createSourceEditorAdapter,
+  buildSourceEditorState,
+} from "../editor/sourceEditorAdapter";
+import { emitEditorState, listenForEditorActions } from "../editor/tauriBridge";
 
 interface SourceEditorProps {
   value: string;
   onChange: (value: string) => void;
-  onReady: (controller: SourceEditorController | null) => void;
-  onStateChange: (state: SourceEditorStateSnapshot) => void;
+  onReady: (adapter: EditorAdapter | null) => void;
+  onWriteClipboard?: (text: string) => Promise<void>;
   isDarkTheme: boolean;
   autoFocus?: boolean;
 }
@@ -41,7 +38,7 @@ export function SourceEditor({
   value,
   onChange,
   onReady,
-  onStateChange,
+  onWriteClipboard,
   isDarkTheme,
   autoFocus = false,
 }: SourceEditorProps) {
@@ -49,19 +46,21 @@ export function SourceEditor({
   const viewRef = useRef<EditorView | null>(null);
   const themeCompartmentRef = useRef(new Compartment());
   const onChangeRef = useRef(onChange);
-  const onStateChangeRef = useRef(onStateChange);
   const suppressNextChangeRef = useRef(false);
-  const lastStateRef = useRef<SourceEditorStateSnapshot | null>(null);
+  const lastStateRef = useRef<EditorStateSnapshot | null>(null);
+  const onWriteClipboardRef = useRef(onWriteClipboard);
 
   onChangeRef.current = onChange;
-  onStateChangeRef.current = onStateChange;
+  onWriteClipboardRef.current = onWriteClipboard;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    let actionUnlisten: (() => void) | undefined;
+
     const emitState = (view: EditorView) => {
-      const nextState = getSourceEditorState(view);
+      const nextState = buildSourceEditorState(view);
       const previousState = lastStateRef.current;
       if (
         previousState?.canUndo === nextState.canUndo &&
@@ -71,7 +70,7 @@ export function SourceEditor({
         return;
       }
       lastStateRef.current = nextState;
-      onStateChangeRef.current(nextState);
+      void emitEditorState("source", nextState);
     };
 
     const view = new EditorView({
@@ -117,29 +116,40 @@ export function SourceEditor({
     });
 
     viewRef.current = view;
-    onReady({
-      focus: () => view.focus(),
-      getSelectedText: () => {
-        const { from, to } = view.state.selection.main;
-        return from === to ? "" : view.state.sliceDoc(from, to);
-      },
-      deleteSelection: () => {
-        const { from, to } = view.state.selection.main;
-        if (from === to) return;
+
+    const adapter = createSourceEditorAdapter({
+      view: () => viewRef.current,
+      getValue: () => view.state.doc.toString(),
+      setValue: (text: string) => {
+        const currentValue = view.state.doc.toString();
+        if (currentValue === text) return;
+        suppressNextChangeRef.current = true;
         view.dispatch({
-          changes: { from, to, insert: "" },
-          selection: { anchor: from },
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: text,
+          },
         });
       },
-      runAction: (action: SourceEditorAction) => {
-        if (action === "undo") {
-          undo(view);
-          return;
+      onWriteClipboard: async (text: string) => {
+        if (onWriteClipboardRef.current) {
+          await onWriteClipboardRef.current(text);
+        } else {
+          await navigator.clipboard.writeText(text);
         }
-        redo(view);
       },
     });
+
+    onReady(adapter);
     emitState(view);
+
+    // Listen for editor actions via Tauri events, same as Milkdown
+    void listenForEditorActions("source", async (action) => {
+      await adapter.runAction(action);
+    }).then((fn) => {
+      actionUnlisten = fn;
+    });
 
     if (autoFocus) {
       view.focus();
@@ -148,11 +158,13 @@ export function SourceEditor({
     return () => {
       lastStateRef.current = null;
       onReady(null);
-      onStateChangeRef.current({
+      void emitEditorState("source", {
+        ...buildSourceEditorState(view),
         canUndo: false,
         canRedo: false,
         focused: false,
       });
+      actionUnlisten?.();
       view.destroy();
       viewRef.current = null;
     };
@@ -191,12 +203,4 @@ export function SourceEditor({
   }, [autoFocus]);
 
   return <div ref={containerRef} className="source-editor-host" />;
-}
-
-function getSourceEditorState(view: EditorView): SourceEditorStateSnapshot {
-  return {
-    canUndo: undoDepth(view.state) > 0,
-    canRedo: redoDepth(view.state) > 0,
-    focused: view.hasFocus,
-  };
 }
