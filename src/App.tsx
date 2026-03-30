@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
+import { AboutPopup } from "./components/AboutPopup";
 import { EditorHost } from "./components/EditorHost";
 import { FloatingBar } from "./components/FloatingBar";
 import { SidebarIsland } from "./components/SidebarIsland";
 import { SourceEditor } from "./components/SourceEditor";
 import { AppToastHost } from "./components/AppToastHost";
 import { FileProvider, useFileContext } from "./context/FileContext";
+import { OverlayContext } from "./context/OverlayContext";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -66,8 +68,10 @@ function AppInner() {
   const [sidebarMode, setSidebarMode] = useState<SidebarLayoutMode>(() =>
     getSidebarLayoutMode(window.innerWidth),
   );
+  const [aboutOpen, setAboutOpen] = useState(false);
   const sidebarDragCleanupRef = useRef<(() => void) | null>(null);
   const toastTimeoutRef = useRef<number | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const dismissToast = () => {
     if (toastTimeoutRef.current != null) {
@@ -320,56 +324,69 @@ function AppInner() {
   const showSidebar = sidebarOpen;
 
   return (
-    <div
-      className={`relative h-full w-full overflow-hidden${showDockedSidebar ? " app-shell-sidebar-docked" : ""}`}
-    >
-      <AppToastHost toast={toast} onDismiss={dismissToast} />
+    <OverlayContext.Provider value={{ overlayRef }}>
       <div
-        className="absolute left-0 top-4 bottom-4 w-1 z-[1040] cursor-ew-resize"
-        onMouseDown={() => getCurrentWindow().startResizeDragging("West")}
-      />
-      <div
-        className="absolute right-0 top-4 bottom-4 w-1 z-[1040] cursor-ew-resize"
-        onMouseDown={() => getCurrentWindow().startResizeDragging("East")}
-      />
-      <FloatingBar />
-      {showSidebar && (
-        <div className="pointer-events-none absolute left-0 top-0 z-[1025] min-h-0">
-          <SidebarIsland
-            mode={sidebarMode}
-            width={sidebarWidth}
-            onResizeStart={handleSidebarResizeStart}
-          />
+        className={`relative h-full w-full overflow-hidden bg-base-100 p-[6px]${showDockedSidebar ? " app-shell-sidebar-docked" : ""}`}
+      >
+        <AppToastHost toast={toast} onDismiss={dismissToast} />
+        <div
+          className="absolute left-0 top-4 bottom-4 w-1 z-[1040] cursor-ew-resize"
+          onMouseDown={() => getCurrentWindow().startResizeDragging("West")}
+        />
+        <div
+          className="absolute right-0 top-4 bottom-4 w-1 z-[1040] cursor-ew-resize"
+          onMouseDown={() => getCurrentWindow().startResizeDragging("East")}
+        />
+        <div className="relative flex h-full w-full flex-col">
+          <div className="pointer-events-none absolute inset-0 z-1300 flex flex-col">
+            <div className="pointer-events-auto h-11 shrink-0">
+              <FloatingBar onAboutOpen={() => setAboutOpen(true)} />
+            </div>
+            <div ref={overlayRef} className="relative flex-1">
+              {aboutOpen && (
+                <AboutPopup onCancel={() => setAboutOpen(false)} />
+              )}
+            </div>
+          </div>
+          <div className="absolute inset-0 z-0 pt-11">
+            <div className="relative h-full w-full overflow-hidden">
+              <div
+                style={{ display: sourceMode ? "none" : undefined }}
+                className="editor-container relative h-full overflow-auto"
+              >
+                <EditorHost
+                  isDarkTheme={isDarkTheme}
+                  onChange={handleEditorChange}
+                  onWriteClipboard={writeClipboard}
+                  onReady={setEditorAdapter}
+                />
+              </div>
+              {sourceMode && (
+                <div className="editor-container source-mode relative h-full overflow-auto">
+                  <SourceEditor
+                    value={sourceText}
+                    onChange={updateSourceText}
+                    onReady={registerSourceEditor}
+                    onStateChange={updateSourceEditorState}
+                    isDarkTheme={isDarkTheme}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      )}
-      <div className="relative flex h-full w-full min-w-0 bg-base-100">
-        <div className="relative h-full min-w-0 flex-1 overflow-hidden">
-          <div
-            style={{ display: sourceMode ? "none" : undefined }}
-            className="editor-container relative h-full overflow-auto"
-          >
-            <EditorHost
-              isDarkTheme={isDarkTheme}
-              onChange={handleEditorChange}
-              onWriteClipboard={writeClipboard}
-              onReady={setEditorAdapter}
+        {showSidebar && (
+          <div className="pointer-events-none absolute left-0 top-0 z-[1025] min-h-0">
+            <SidebarIsland
+              mode={sidebarMode}
+              width={sidebarWidth}
+              onResizeStart={handleSidebarResizeStart}
             />
           </div>
-          {sourceMode && (
-            <div className="editor-container source-mode relative h-full overflow-auto">
-              <SourceEditor
-                value={sourceText}
-                onChange={updateSourceText}
-                onReady={registerSourceEditor}
-                onStateChange={updateSourceEditorState}
-                isDarkTheme={isDarkTheme}
-                autoFocus
-              />
-            </div>
-          )}
-        </div>
+        )}
       </div>
-    </div>
+    </OverlayContext.Provider>
   );
 }
 

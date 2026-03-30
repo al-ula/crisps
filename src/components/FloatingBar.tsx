@@ -3,7 +3,6 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useFileContext } from "../context/FileContext";
 import type { EditorStateSnapshot } from "../editor/types";
-import { AboutPopup } from "./AboutPopup";
 import {
   CascadingMenu,
   type CascadingMenuItem,
@@ -315,7 +314,11 @@ const LIST_ACTIONS = new Set([
 const VIEW_ACTIONS = new Set(["toggle-sidebar", "source-mode"]);
 const APP_ACTIONS = new Set(["about"]);
 
-export function FloatingBar() {
+interface FloatingBarProps {
+  onAboutOpen?: () => void;
+}
+
+export function FloatingBar({ onAboutOpen }: FloatingBarProps) {
   const {
     fileState,
     editorState,
@@ -334,7 +337,6 @@ export function FloatingBar() {
   } = useFileContext();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
   const [mainPopupStyle, setMainPopupStyle] = useState<CSSProperties>({});
   const [openPath, setOpenPath] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -540,7 +542,7 @@ export function FloatingBar() {
         setThemeMode("dark");
         return;
       case "about":
-        setAboutOpen(true);
+        onAboutOpen?.();
         return;
     }
 
@@ -636,9 +638,9 @@ export function FloatingBar() {
   const titleLabel = `${fileState.isDirty ? "• " : ""}${titleName}`;
 
   return (
-    <div className="absolute inset-x-0 top-0 z-1030 flex h-11 items-start justify-between px-3 pt-1.5">
+    <div className="relative flex h-11 w-full items-start justify-between px-[6px] pt-1.5">
       <div
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        className="absolute inset-x-0 top-0 h-8 cursor-grab active:cursor-grabbing"
         data-tauri-drag-region
       />
       <div className="pointer-events-none absolute left-1/2 top-1.5 z-10 -translate-x-1/2">
@@ -864,7 +866,6 @@ export function FloatingBar() {
           </div>
         </div>
       </div>
-      {aboutOpen ? <AboutPopup onCancel={() => setAboutOpen(false)} /> : null}
     </div>
   );
 }

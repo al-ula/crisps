@@ -59,6 +59,7 @@ import type {
   EditorAdapter,
   EditorStateSnapshot,
 } from "../editor/types";
+import { useOverlayRef } from "../context/OverlayContext";
 import { BlockEditorOverlay } from "./BlockEditorOverlay";
 import { getBlockIconForBlock } from "./BlockIcon";
 import { ImagePopup, type ImagePopupValue } from "./ImagePopup";
@@ -103,6 +104,7 @@ export function MilkdownEditor({
   onWriteClipboard,
   onReady,
 }: MilkdownEditorProps) {
+  const overlayRef = useOverlayRef();
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const latexPopupRef = useRef<HTMLFormElement>(null);
@@ -1327,57 +1329,59 @@ export function MilkdownEditor({
         onAction={handleToolbarAction}
         onRefreshPosition={refreshToolbarPosition}
       />
-      {typeof document !== "undefined" && imagePopupValue
+      {overlayRef?.current && imagePopupValue
         ? createPortal(
-            <ImagePopup
-              popupRef={imagePopupRef}
-              pathInputRef={imagePathInputRef}
-              altInputRef={imageAltInputRef}
-              fileInputRef={imageFileInputRef}
-              value={imagePopupValue}
-              onChange={(patch) => {
-                if (typeof patch.src === "string" && patch.src.trim()) {
-                  imagePopupFileRef.current = null;
-                  if (imageFileInputRef.current) {
-                    imageFileInputRef.current.value = "";
+            <div className="pointer-events-auto absolute inset-0 z-1300">
+              <ImagePopup
+                popupRef={imagePopupRef}
+                pathInputRef={imagePathInputRef}
+                altInputRef={imageAltInputRef}
+                fileInputRef={imageFileInputRef}
+                value={imagePopupValue}
+                onChange={(patch) => {
+                  if (typeof patch.src === "string" && patch.src.trim()) {
+                    imagePopupFileRef.current = null;
+                    if (imageFileInputRef.current) {
+                      imageFileInputRef.current.value = "";
+                    }
+                    patch = {
+                      ...patch,
+                      fileName: "",
+                    };
                   }
-                  patch = {
-                    ...patch,
-                    fileName: "",
-                  };
-                }
-                setImagePopupValue((current) =>
-                  current
-                    ? {
-                        ...current,
-                        ...patch,
-                      }
-                    : current,
-                );
-              }}
-              onBrowsePath={() => {
-                void browseImagePath();
-              }}
-              onPickFile={(file) => {
-                imagePopupFileRef.current = file ?? null;
-                setImagePopupValue((current) =>
-                  current
-                    ? {
-                        ...current,
-                        src: "",
-                        fileName: file?.name ?? "",
-                      }
-                    : current,
-                );
-              }}
-              onSubmit={() => {
-                void submitImagePopup();
-              }}
-              onCancel={() => {
-                closeImagePopup();
-              }}
-            />,
-            document.body,
+                  setImagePopupValue((current) =>
+                    current
+                      ? {
+                          ...current,
+                          ...patch,
+                        }
+                      : current,
+                  );
+                }}
+                onBrowsePath={() => {
+                  void browseImagePath();
+                }}
+                onPickFile={(file) => {
+                  imagePopupFileRef.current = file ?? null;
+                  setImagePopupValue((current) =>
+                    current
+                      ? {
+                          ...current,
+                          src: "",
+                          fileName: file?.name ?? "",
+                        }
+                      : current,
+                  );
+                }}
+                onSubmit={() => {
+                  void submitImagePopup();
+                }}
+                onCancel={() => {
+                  closeImagePopup();
+                }}
+              />
+            </div>,
+            overlayRef.current,
           )
         : null}
       <LatexPopup
